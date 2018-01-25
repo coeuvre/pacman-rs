@@ -6,4 +6,4 @@ authors = ["Coeuvre Wong <coeuvre@gmail.com>"]
 [dependencies]
 
 [target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = ["winuser"] }
+winapi = { version = "0.3", features = ["winuser", "libloaderapi", "shellscalingapi"] }
