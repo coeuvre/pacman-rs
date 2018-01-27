@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Coeuvre Wong <coeuvre@gmail.com>"]
 
 [dependencies]
+gl = "0.6.0"
 
 [target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = ["winuser", "libloaderapi", "shellscalingapi"] }
+winapi = { version = "0.3", features = ["winuser", "libloaderapi", "shellscalingapi", "errhandlingapi"] }

@@ -1,3 +1,7 @@
+extern crate gl;
+#[cfg(windows)]
+extern crate winapi;
+
 #[cfg(windows)]
 mod win_entry;
 
