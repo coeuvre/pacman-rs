@@ -54,13 +54,31 @@ pub fn start() {
 
         gl::load_with(|s| get_gl_proc_address(s));
 
+        // gl::ClearColor(0.0, 0.0, 0.0, 0.0);
+        gl::Clear(gl::COLOR_BUFFER_BIT);
+
         let glversion = CStr::from_ptr(gl::GetString(gl::VERSION) as *const ::std::os::raw::c_char);
-        println!("{}", glversion.to_str().unwrap());
+        println!("OpenGL Version {}", glversion.to_str().unwrap());
 
         let mut msg = ::std::mem::uninitialized();
-        while GetMessageW(&mut msg, NULL as HWND, 0, 0) != 0 {
-            TranslateMessage(&msg);
-            DispatchMessageW(&msg);
+
+        // while GetMessageW(&mut msg, NULL as HWND, 0, 0) != 0 {
+        //     TranslateMessage(&msg);
+        //     DispatchMessageW(&msg);
+        // }
+
+        'game: loop {
+            while PeekMessageW(&mut msg, NULL as HWND, 0, 0, PM_REMOVE) != 0 {
+                match msg.message {
+                    WM_QUIT => break 'game,
+                    _ => {
+                        TranslateMessage(&msg);
+                        DispatchMessageW(&msg);
+                    }
+                }
+            }
+
+            SwapBuffers(hdc);
         }
 
         wglMakeCurrent(NULL as HDC, NULL as HGLRC);
@@ -74,7 +92,7 @@ unsafe fn get_gl_proc_address(name: &str) -> *const c_void {
     match p {
         0 | 0x1 | 0x2 | 0x3 | -1 => {
             let module = LoadLibraryA("opengl32.dll\0".as_ptr() as LPCSTR);
-            assert!(module != 0 as HMODULE, "Failed to load opengl32.dll");
+            assert_ne!(module, 0 as HMODULE, "Failed to load opengl32.dll");
             p = GetProcAddress(module, cstring.as_ptr()) as isize;
         }
         _ => {}
