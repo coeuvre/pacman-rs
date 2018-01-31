@@ -1,6 +1,5 @@
-use std::ffi::{CStr, CString};
+use std::ffi::CString;
 use std::os::raw::*;
-use gl;
 use winapi::um::shellscalingapi::*;
 use winapi::shared::ntdef::*;
 use winapi::shared::windef::*;
@@ -9,6 +8,7 @@ use winapi::um::winuser::*;
 use winapi::um::wingdi::*;
 use winapi::um::errhandlingapi::GetLastError;
 use winapi::um::libloaderapi::*;
+use game::{self, CurrentGlContext, GlContext};
 
 macro_rules! wcstr {
     ($e:expr) => {{
@@ -22,6 +22,10 @@ macro_rules! wcstr {
 pub struct WinGlContext {
     hdc: HDC,
     hglrc: HGLRC,
+}
+
+pub struct CurrentWinGlContext<'a> {
+    gl_ctx: &'a mut WinGlContext,
 }
 
 impl WinGlContext {
@@ -42,16 +46,34 @@ impl WinGlContext {
 
         WinGlContext { hdc, hglrc }
     }
+}
 
-    pub unsafe fn make_current(&self) {
-        let success = wglMakeCurrent(self.hdc, self.hglrc);
-        if success == 0 {
-            panic!("Error {}", GetLastError());
+impl Drop for WinGlContext {
+    fn drop(&mut self) {
+        unsafe {
+            wglDeleteContext(self.hglrc);
         }
     }
+}
 
+unsafe impl Send for WinGlContext {}
+
+impl<'a> GlContext<'a, CurrentWinGlContext<'a>> for WinGlContext {
+    fn make_current(&'a mut self) -> Result<CurrentWinGlContext<'a>, String> {
+        unsafe {
+            let success = wglMakeCurrent(self.hdc, self.hglrc);
+            if success == 0 {
+                Err(format!("Error {}", GetLastError()))
+            } else {
+                Ok(CurrentWinGlContext { gl_ctx: self })
+            }
+        }
+    }
+}
+
+impl<'a> CurrentGlContext<'a> for CurrentWinGlContext<'a> {
     // See https://www.khronos.org/opengl/wiki/Load_OpenGL_Functions#Windows
-    pub unsafe fn get_proc_address(&self, name: &str) -> *const c_void {
+    unsafe fn get_proc_address(&self, name: &str) -> Result<*const c_void, String> {
         let cstring = CString::new(name).unwrap();
         let mut p = wglGetProcAddress(cstring.as_ptr()) as isize;
         match p {
@@ -62,38 +84,22 @@ impl WinGlContext {
             }
             _ => {}
         }
-        p as *const c_void
+        Ok(p as *const c_void)
     }
 
-    pub unsafe fn swap_buffers(&self) {
-        SwapBuffers(self.hdc);
+    fn swap_buffers(&mut self) -> Result<(), String> {
+        unsafe {
+            SwapBuffers(self.gl_ctx.hdc);
+        }
+        Ok(())
     }
 }
 
-impl Drop for WinGlContext {
+impl<'a> Drop for CurrentWinGlContext<'a> {
     fn drop(&mut self) {
         unsafe {
             wglMakeCurrent(NULL as HDC, NULL as HGLRC);
-            wglDeleteContext(self.hglrc);
         }
-    }
-}
-
-unsafe impl Send for WinGlContext {}
-
-unsafe fn game_thread_main(gl_ctx: WinGlContext) {
-    gl_ctx.make_current();
-
-    gl::load_with(|s| gl_ctx.get_proc_address(s));
-
-    // gl::ClearColor(0.0, 0.0, 0.0, 0.0);
-    gl::Clear(gl::COLOR_BUFFER_BIT);
-
-    let glversion = CStr::from_ptr(gl::GetString(gl::VERSION) as *const ::std::os::raw::c_char);
-    println!("OpenGL Version {}", glversion.to_str().unwrap());
-
-    'game: loop {
-        gl_ctx.swap_buffers();
     }
 }
 
@@ -110,9 +116,9 @@ pub fn start() {
         let hwnd = create_window(hinstance, class_name.as_ptr(), title.as_ptr());
 
         let hdc = GetDC(hwnd);
-        let gl_ctx = WinGlContext::new(hdc);
+        let mut gl_ctx = WinGlContext::new(hdc);
 
-        ::std::thread::spawn(move || game_thread_main(gl_ctx));
+        ::std::thread::spawn(move || game::start(&mut gl_ctx));
 
         let mut msg = ::std::mem::uninitialized();
         while GetMessageW(&mut msg, NULL as HWND, 0, 0) != 0 {
