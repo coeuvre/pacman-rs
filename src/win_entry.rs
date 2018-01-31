@@ -22,6 +22,7 @@ macro_rules! wcstr {
 pub struct WinGlContext {
     hdc: HDC,
     hglrc: HGLRC,
+    opengl32_module: HMODULE,
 }
 
 pub struct CurrentWinGlContext<'a> {
@@ -30,6 +31,9 @@ pub struct CurrentWinGlContext<'a> {
 
 impl WinGlContext {
     pub unsafe fn new(hdc: HDC) -> WinGlContext {
+        let opengl32_module = LoadLibraryA("opengl32.dll\0".as_ptr() as LPCSTR);
+        assert_ne!(opengl32_module, 0 as HMODULE, "Failed to load opengl32.dll");
+
         let mut pfd = ::std::mem::zeroed::<PIXELFORMATDESCRIPTOR>();
         pfd.nSize = ::std::mem::size_of_val(&pfd) as WORD;
         pfd.nVersion = 1;
@@ -44,7 +48,11 @@ impl WinGlContext {
 
         let hglrc = wglCreateContext(hdc);
 
-        WinGlContext { hdc, hglrc }
+        WinGlContext {
+            hdc,
+            hglrc,
+            opengl32_module,
+        }
     }
 }
 
@@ -52,6 +60,8 @@ impl Drop for WinGlContext {
     fn drop(&mut self) {
         unsafe {
             wglDeleteContext(self.hglrc);
+
+            FreeLibrary(self.opengl32_module);
         }
     }
 }
@@ -78,9 +88,7 @@ impl<'a> CurrentGlContext<'a> for CurrentWinGlContext<'a> {
         let mut p = wglGetProcAddress(cstring.as_ptr()) as isize;
         match p {
             0 | 0x1 | 0x2 | 0x3 | -1 => {
-                let module = LoadLibraryA("opengl32.dll\0".as_ptr() as LPCSTR);
-                assert_ne!(module, 0 as HMODULE, "Failed to load opengl32.dll");
-                p = GetProcAddress(module, cstring.as_ptr()) as isize;
+                p = GetProcAddress(self.gl_ctx.opengl32_module, cstring.as_ptr()) as isize;
             }
             _ => {}
         }
