@@ -19,19 +19,13 @@ macro_rules! wcstr {
     }};
 }
 
-pub fn start() {
-    let class_name = wcstr!("PACMANRSWINDOWCLASS");
-    let title = wcstr!("Pac-Mac");
+pub struct WinGlContext {
+    hdc: HDC,
+    hglrc: HGLRC,
+}
 
-    unsafe {
-        let hinstance = GetModuleHandleW(NULL as LPCWSTR);
-
-        SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE);
-
-        register_class(hinstance, class_name.as_ptr());
-        let hwnd = create_window(hinstance, class_name.as_ptr(), title.as_ptr());
-
-        let hdc = GetDC(hwnd);
+impl WinGlContext {
+    pub unsafe fn new(hdc: HDC) -> WinGlContext {
         let mut pfd = ::std::mem::zeroed::<PIXELFORMATDESCRIPTOR>();
         pfd.nSize = ::std::mem::size_of_val(&pfd) as WORD;
         pfd.nVersion = 1;
@@ -46,58 +40,86 @@ pub fn start() {
 
         let hglrc = wglCreateContext(hdc);
 
-        let success = wglMakeCurrent(hdc, hglrc);
+        WinGlContext { hdc, hglrc }
+    }
+
+    pub unsafe fn make_current(&self) {
+        let success = wglMakeCurrent(self.hdc, self.hglrc);
         if success == 0 {
-            println!("Error {}", GetLastError());
-            return;
+            panic!("Error {}", GetLastError());
         }
+    }
 
-        gl::load_with(|s| get_gl_proc_address(s));
-
-        // gl::ClearColor(0.0, 0.0, 0.0, 0.0);
-        gl::Clear(gl::COLOR_BUFFER_BIT);
-
-        let glversion = CStr::from_ptr(gl::GetString(gl::VERSION) as *const ::std::os::raw::c_char);
-        println!("OpenGL Version {}", glversion.to_str().unwrap());
-
-        let mut msg = ::std::mem::uninitialized();
-
-        // while GetMessageW(&mut msg, NULL as HWND, 0, 0) != 0 {
-        //     TranslateMessage(&msg);
-        //     DispatchMessageW(&msg);
-        // }
-
-        'game: loop {
-            while PeekMessageW(&mut msg, NULL as HWND, 0, 0, PM_REMOVE) != 0 {
-                match msg.message {
-                    WM_QUIT => break 'game,
-                    _ => {
-                        TranslateMessage(&msg);
-                        DispatchMessageW(&msg);
-                    }
-                }
+    // See https://www.khronos.org/opengl/wiki/Load_OpenGL_Functions#Windows
+    pub unsafe fn get_proc_address(&self, name: &str) -> *const c_void {
+        let cstring = CString::new(name).unwrap();
+        let mut p = wglGetProcAddress(cstring.as_ptr()) as isize;
+        match p {
+            0 | 0x1 | 0x2 | 0x3 | -1 => {
+                let module = LoadLibraryA("opengl32.dll\0".as_ptr() as LPCSTR);
+                assert_ne!(module, 0 as HMODULE, "Failed to load opengl32.dll");
+                p = GetProcAddress(module, cstring.as_ptr()) as isize;
             }
-
-            SwapBuffers(hdc);
+            _ => {}
         }
+        p as *const c_void
+    }
 
-        wglMakeCurrent(NULL as HDC, NULL as HGLRC);
+    pub unsafe fn swap_buffers(&self) {
+        SwapBuffers(self.hdc);
     }
 }
 
-// See https://www.khronos.org/opengl/wiki/Load_OpenGL_Functions#Windows
-unsafe fn get_gl_proc_address(name: &str) -> *const c_void {
-    let cstring = CString::new(name).unwrap();
-    let mut p = wglGetProcAddress(cstring.as_ptr()) as isize;
-    match p {
-        0 | 0x1 | 0x2 | 0x3 | -1 => {
-            let module = LoadLibraryA("opengl32.dll\0".as_ptr() as LPCSTR);
-            assert_ne!(module, 0 as HMODULE, "Failed to load opengl32.dll");
-            p = GetProcAddress(module, cstring.as_ptr()) as isize;
+impl Drop for WinGlContext {
+    fn drop(&mut self) {
+        unsafe {
+            wglMakeCurrent(NULL as HDC, NULL as HGLRC);
+            wglDeleteContext(self.hglrc);
         }
-        _ => {}
     }
-    p as *const c_void
+}
+
+unsafe impl Send for WinGlContext {}
+
+unsafe fn game_thread_main(gl_ctx: WinGlContext) {
+    gl_ctx.make_current();
+
+    gl::load_with(|s| gl_ctx.get_proc_address(s));
+
+    // gl::ClearColor(0.0, 0.0, 0.0, 0.0);
+    gl::Clear(gl::COLOR_BUFFER_BIT);
+
+    let glversion = CStr::from_ptr(gl::GetString(gl::VERSION) as *const ::std::os::raw::c_char);
+    println!("OpenGL Version {}", glversion.to_str().unwrap());
+
+    'game: loop {
+        gl_ctx.swap_buffers();
+    }
+}
+
+pub fn start() {
+    let class_name = wcstr!("PACMANRSWINDOWCLASS");
+    let title = wcstr!("Pac-Mac");
+
+    unsafe {
+        let hinstance = GetModuleHandleW(NULL as LPCWSTR);
+
+        SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE);
+
+        register_class(hinstance, class_name.as_ptr());
+        let hwnd = create_window(hinstance, class_name.as_ptr(), title.as_ptr());
+
+        let hdc = GetDC(hwnd);
+        let gl_ctx = WinGlContext::new(hdc);
+
+        ::std::thread::spawn(move || game_thread_main(gl_ctx));
+
+        let mut msg = ::std::mem::uninitialized();
+        while GetMessageW(&mut msg, NULL as HWND, 0, 0) != 0 {
+            TranslateMessage(&msg);
+            DispatchMessageW(&msg);
+        }
+    }
 }
 
 unsafe fn register_class(hinstance: HINSTANCE, class_name: LPCWSTR) {
