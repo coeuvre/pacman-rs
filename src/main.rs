@@ -1,4 +1,6 @@
 extern crate gl;
+#[macro_use]
+extern crate lazy_static;
 #[cfg(windows)]
 extern crate winapi;
 

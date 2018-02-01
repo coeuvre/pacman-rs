@@ -2,27 +2,47 @@ use std::os::raw::c_void;
 use std::ffi::CStr;
 use gl;
 
-pub trait GlContext<'a, C>: Send
-where
-    C: CurrentGlContext<'a>,
-{
-    fn make_current(&'a mut self) -> Result<C, String>;
+pub trait GlContext: Send {
+    // FIXME(coeuvre): Use generic associated types when it is landed at stable channel
+    fn make_current<'a>(&'a mut self) -> Result<Box<CurrentGlContext + 'a>, String>;
 }
 
 pub trait CurrentGlContext<'a> {
-    unsafe fn get_proc_address(&self, name: &str) -> Result<*const c_void, String>;
+    unsafe fn proc_address(&self, name: &str) -> Result<*const c_void, String>;
+}
+
+pub trait Platform {
+    fn performance_counter() -> u64;
+    fn performance_fraquency() -> u64;
+}
+
+pub trait GlDesktop: Platform {
+    type GlWindow: GlWindow;
+
+    fn create_window(&mut self) -> Result<Self::GlWindow, String>;
+}
+
+pub trait GlWindow {
+    type GlContext: GlContext;
+
+    fn create_gl_context(&mut self) -> Result<Self::GlContext, String>;
     fn swap_buffers(&mut self) -> Result<(), String>;
 }
 
-pub fn start<'a, G, C>(gl_ctx: &'a mut G)
+fn update(_dt: f32) {}
+
+fn render() {}
+
+pub fn start_desktop<D>(desktop: &mut D)
 where
-    G: GlContext<'a, C>,
-    C: CurrentGlContext<'a>,
+    D: GlDesktop,
 {
+    let mut window = desktop.create_window().unwrap();
+    let mut gl_ctx = window.create_gl_context().unwrap();
     let mut current_gl_ctx = gl_ctx.make_current().unwrap();
 
     unsafe {
-        gl::load_with(|s| current_gl_ctx.get_proc_address(s).unwrap());
+        gl::load_with(|s| current_gl_ctx.proc_address(s).unwrap());
     }
 
     // gl::ClearColor(0.0, 0.0, 0.0, 0.0);
@@ -35,6 +55,10 @@ where
     println!("OpenGL Version {}", glversion.to_str().unwrap());
 
     'game: loop {
-        current_gl_ctx.swap_buffers().unwrap();
+        update(0.0);
+
+        render();
+
+        window.swap_buffers().unwrap();
     }
 }

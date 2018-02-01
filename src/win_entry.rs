@@ -8,7 +8,9 @@ use winapi::um::winuser::*;
 use winapi::um::wingdi::*;
 use winapi::um::errhandlingapi::GetLastError;
 use winapi::um::libloaderapi::*;
-use game::{self, CurrentGlContext, GlContext};
+use std::sync::mpsc::channel;
+use game;
+use game::*;
 
 macro_rules! wcstr {
     ($e:expr) => {{
@@ -19,18 +21,22 @@ macro_rules! wcstr {
     }};
 }
 
-pub struct WinGlContext {
+lazy_static! {
+    static ref INSTANCE: Win32Instance = Win32Instance::new();
+}
+
+pub struct Win32GlContext {
     hdc: HDC,
     hglrc: HGLRC,
     opengl32_module: HMODULE,
 }
 
-pub struct CurrentWinGlContext<'a> {
-    gl_ctx: &'a mut WinGlContext,
+pub struct CurrentWin32GlContext<'a> {
+    gl_ctx: &'a mut Win32GlContext,
 }
 
-impl WinGlContext {
-    pub unsafe fn new(hdc: HDC) -> WinGlContext {
+impl Win32GlContext {
+    pub unsafe fn new(hdc: HDC) -> Win32GlContext {
         let opengl32_module = LoadLibraryA("opengl32.dll\0".as_ptr() as LPCSTR);
         assert_ne!(opengl32_module, 0 as HMODULE, "Failed to load opengl32.dll");
 
@@ -48,7 +54,7 @@ impl WinGlContext {
 
         let hglrc = wglCreateContext(hdc);
 
-        WinGlContext {
+        Win32GlContext {
             hdc,
             hglrc,
             opengl32_module,
@@ -56,7 +62,7 @@ impl WinGlContext {
     }
 }
 
-impl Drop for WinGlContext {
+impl Drop for Win32GlContext {
     fn drop(&mut self) {
         unsafe {
             wglDeleteContext(self.hglrc);
@@ -66,24 +72,24 @@ impl Drop for WinGlContext {
     }
 }
 
-unsafe impl Send for WinGlContext {}
+unsafe impl Send for Win32GlContext {}
 
-impl<'a> GlContext<'a, CurrentWinGlContext<'a>> for WinGlContext {
-    fn make_current(&'a mut self) -> Result<CurrentWinGlContext<'a>, String> {
+impl GlContext for Win32GlContext {
+    fn make_current<'a>(&'a mut self) -> Result<Box<CurrentGlContext + 'a>, String> {
         unsafe {
             let success = wglMakeCurrent(self.hdc, self.hglrc);
             if success == 0 {
                 Err(format!("Error {}", GetLastError()))
             } else {
-                Ok(CurrentWinGlContext { gl_ctx: self })
+                Ok(Box::new(CurrentWin32GlContext { gl_ctx: self }))
             }
         }
     }
 }
 
-impl<'a> CurrentGlContext<'a> for CurrentWinGlContext<'a> {
+impl<'a> CurrentGlContext<'a> for CurrentWin32GlContext<'a> {
     // See https://www.khronos.org/opengl/wiki/Load_OpenGL_Functions#Windows
-    unsafe fn get_proc_address(&self, name: &str) -> Result<*const c_void, String> {
+    unsafe fn proc_address(&self, name: &str) -> Result<*const c_void, String> {
         let cstring = CString::new(name).unwrap();
         let mut p = wglGetProcAddress(cstring.as_ptr()) as isize;
         match p {
@@ -94,16 +100,9 @@ impl<'a> CurrentGlContext<'a> for CurrentWinGlContext<'a> {
         }
         Ok(p as *const c_void)
     }
-
-    fn swap_buffers(&mut self) -> Result<(), String> {
-        unsafe {
-            SwapBuffers(self.gl_ctx.hdc);
-        }
-        Ok(())
-    }
 }
 
-impl<'a> Drop for CurrentWinGlContext<'a> {
+impl<'a> Drop for CurrentWin32GlContext<'a> {
     fn drop(&mut self) {
         unsafe {
             wglMakeCurrent(NULL as HDC, NULL as HGLRC);
@@ -111,42 +110,143 @@ impl<'a> Drop for CurrentWinGlContext<'a> {
     }
 }
 
-pub fn start() {
-    let class_name = wcstr!("PACMANRSWINDOWCLASS");
-    let title = wcstr!("Pac-Mac");
+struct WindowClass {
+    name: Vec<u16>,
+}
 
-    unsafe {
-        let hinstance = GetModuleHandleW(NULL as LPCWSTR);
+impl WindowClass {
+    pub fn new(hinstance: HINSTANCE) -> WindowClass {
+        let name = wcstr!("PACMANRSWINDOWCLASS");
 
-        SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE);
+        unsafe {
+            let mut wc = ::std::mem::zeroed::<WNDCLASSEXW>();
+            wc.cbSize = ::std::mem::size_of_val(&wc) as UINT;
+            wc.style = 0;
+            wc.lpfnWndProc = Some(window_proc);
+            wc.hCursor = LoadCursorW(0 as HINSTANCE, IDC_ARROW);
+            wc.hInstance = hinstance;
+            wc.lpszClassName = name.as_ptr();
+            wc.cbWndExtra = 0;
 
-        register_class(hinstance, class_name.as_ptr());
-        let hwnd = create_window(hinstance, class_name.as_ptr(), title.as_ptr());
+            RegisterClassExW(&wc);
+        }
 
-        let hdc = GetDC(hwnd);
-        let mut gl_ctx = WinGlContext::new(hdc);
+        WindowClass { name }
+    }
+}
 
-        ::std::thread::spawn(move || game::start(&mut gl_ctx));
-
-        let mut msg = ::std::mem::uninitialized();
-        while GetMessageW(&mut msg, NULL as HWND, 0, 0) != 0 {
-            TranslateMessage(&msg);
-            DispatchMessageW(&msg);
+impl Drop for WindowClass {
+    fn drop(&mut self) {
+        unsafe {
+            UnregisterClassW(self.name.as_ptr(), INSTANCE.hinstance);
         }
     }
 }
 
-unsafe fn register_class(hinstance: HINSTANCE, class_name: LPCWSTR) {
-    let mut wc = ::std::mem::zeroed::<WNDCLASSEXW>();
-    wc.cbSize = ::std::mem::size_of_val(&wc) as UINT;
-    wc.style = 0;
-    wc.lpfnWndProc = Some(window_proc);
-    wc.hCursor = LoadCursorW(0 as HINSTANCE, IDC_ARROW);
-    wc.hInstance = hinstance;
-    wc.lpszClassName = class_name;
-    wc.cbWndExtra = 0;
+struct Win32Instance {
+    hinstance: HINSTANCE,
+    window_class: WindowClass,
+}
 
-    RegisterClassExW(&wc);
+impl Win32Instance {
+    pub fn new() -> Win32Instance {
+        let hinstance = unsafe { GetModuleHandleW(NULL as LPCWSTR) };
+        Win32Instance {
+            hinstance,
+            window_class: WindowClass::new(hinstance),
+        }
+    }
+}
+
+unsafe impl Sync for Win32Instance {}
+
+struct Win32Platform {}
+
+impl Win32Platform {
+    pub fn new() -> Result<Win32Platform, String> {
+        Ok(Win32Platform {})
+    }
+}
+
+impl Platform for Win32Platform {
+    fn performance_counter() -> u64 {
+        0
+    }
+    fn performance_fraquency() -> u64 {
+        0
+    }
+}
+
+impl GlDesktop for Win32Platform {
+    type GlWindow = Win32GlWindow;
+
+    fn create_window(&mut self) -> Result<Self::GlWindow, String> {
+        let (sender, receiver) = channel();
+
+        ::std::thread::spawn(move || {
+            unsafe {
+                let title = wcstr!("Pac-Mac");
+
+                let hwnd = create_window(
+                    INSTANCE.hinstance,
+                    INSTANCE.window_class.name.as_ptr(),
+                    title.as_ptr(),
+                );
+
+                let window = Win32GlWindow {
+                    hwnd,
+                    hdc: GetDC(hwnd),
+                };
+                sender.send(window).unwrap();
+
+                let mut msg = ::std::mem::uninitialized();
+                while GetMessageW(&mut msg, hwnd, 0, 0) != 0 {
+                    TranslateMessage(&msg);
+                    DispatchMessageW(&msg);
+                }
+            };
+        });
+
+        Ok(receiver.recv().unwrap())
+    }
+}
+
+struct Win32GlWindow {
+    hwnd: HWND,
+    hdc: HDC,
+}
+
+impl GlWindow for Win32GlWindow {
+    type GlContext = Win32GlContext;
+
+    fn create_gl_context(&mut self) -> Result<Self::GlContext, String> {
+        unsafe { Ok(Win32GlContext::new(self.hdc)) }
+    }
+
+    fn swap_buffers(&mut self) -> Result<(), String> {
+        unsafe {
+            SwapBuffers(self.hdc);
+        }
+        Ok(())
+    }
+}
+
+unsafe impl Send for Win32GlWindow {}
+
+impl Drop for Win32GlWindow {
+    fn drop(&mut self) {
+        unsafe {
+            DestroyWindow(self.hwnd);
+        }
+    }
+}
+
+pub fn start() {
+    let mut win32 = Win32Platform::new().unwrap();
+    unsafe {
+        SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE);
+    }
+    game::start_desktop(&mut win32);
 }
 
 unsafe fn create_window(hinstance: HINSTANCE, class_name: LPCWSTR, title: LPCWSTR) -> HWND {
@@ -180,8 +280,8 @@ unsafe extern "system" fn window_proc(
     lparam: LPARAM,
 ) -> LRESULT {
     match msg {
-        WM_CLOSE => {
-            DestroyWindow(hwnd);
+        WM_CLOSE => {}
+        WM_DESTROY => {
             PostQuitMessage(0);
         }
         _ => return DefWindowProcW(hwnd, msg, wparam, lparam),
