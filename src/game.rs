@@ -37,9 +37,11 @@ pub fn start_desktop<D>(desktop: &mut D)
 where
     D: GlDesktop,
 {
+    println!("Starting desktop");
+
     let mut window = desktop.create_window().unwrap();
     let mut gl_ctx = window.create_gl_context().unwrap();
-    let mut current_gl_ctx = gl_ctx.make_current().unwrap();
+    let current_gl_ctx = gl_ctx.make_current().unwrap();
 
     unsafe {
         gl::load_with(|s| current_gl_ctx.proc_address(s).unwrap());

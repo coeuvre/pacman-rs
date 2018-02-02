@@ -8,9 +8,11 @@ use winapi::um::winuser::*;
 use winapi::um::wingdi::*;
 use winapi::um::errhandlingapi::GetLastError;
 use winapi::um::libloaderapi::*;
-use std::sync::mpsc::channel;
+use std::sync::mpsc::{channel, Sender};
+use winapi::um::processthreadsapi::GetCurrentThreadId;
 use game;
 use game::*;
+use lazy_static;
 
 macro_rules! wcstr {
     ($e:expr) => {{
@@ -146,6 +148,7 @@ impl Drop for WindowClass {
 struct Win32Instance {
     hinstance: HINSTANCE,
     window_class: WindowClass,
+    main_thread_id: DWORD,
 }
 
 impl Win32Instance {
@@ -154,6 +157,7 @@ impl Win32Instance {
         Win32Instance {
             hinstance,
             window_class: WindowClass::new(hinstance),
+            main_thread_id: unsafe { GetCurrentThreadId() },
         }
     }
 }
@@ -181,33 +185,34 @@ impl GlDesktop for Win32Platform {
     type GlWindow = Win32GlWindow;
 
     fn create_window(&mut self) -> Result<Self::GlWindow, String> {
+        let title = wcstr!("Pac-Mac");
         let (sender, receiver) = channel();
+        let params = CreateWindowParam {
+            sender: sender,
+            title: title.as_ptr(),
+        };
 
-        ::std::thread::spawn(move || {
-            unsafe {
-                let title = wcstr!("Pac-Mac");
+        unsafe {
+            println!("Posting thread message...");
+            PostThreadMessageW(
+                INSTANCE.main_thread_id,
+                WM_USER_CREATE_WINDOW,
+                0,
+                &params as *const CreateWindowParam as LPARAM,
+            );
+            println!("Last error {}", GetLastError());
 
-                let hwnd = create_window(
-                    INSTANCE.hinstance,
-                    INSTANCE.window_class.name.as_ptr(),
-                    title.as_ptr(),
-                );
+            println!("Waiting for response...");
 
-                let window = Win32GlWindow {
-                    hwnd,
-                    hdc: GetDC(hwnd),
-                };
-                sender.send(window).unwrap();
+            let hwnd = receiver.recv().unwrap();
 
-                let mut msg = ::std::mem::uninitialized();
-                while GetMessageW(&mut msg, hwnd, 0, 0) != 0 {
-                    TranslateMessage(&msg);
-                    DispatchMessageW(&msg);
-                }
-            };
-        });
+            println!("Get hwnd");
 
-        Ok(receiver.recv().unwrap())
+            Ok(Win32GlWindow {
+                hwnd,
+                hdc: GetDC(hwnd),
+            })
+        }
     }
 }
 
@@ -241,12 +246,50 @@ impl Drop for Win32GlWindow {
     }
 }
 
+const WM_USER_CREATE_WINDOW: UINT = WM_USER + 1;
+
+struct CreateWindowParam {
+    sender: Sender<HWND>,
+    title: LPCWSTR,
+}
+
 pub fn start() {
-    let mut win32 = Win32Platform::new().unwrap();
+    lazy_static::initialize(&INSTANCE);
+
     unsafe {
+        let mut msg = ::std::mem::uninitialized();
+
         SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE);
+
+        let mut win32 = Win32Platform::new().unwrap();
+
+        // force the system to create the message queue
+        PeekMessageW(&mut msg, NULL as HWND, WM_USER, WM_USER, PM_NOREMOVE);
+
+        ::std::thread::spawn(move || {
+            game::start_desktop(&mut win32);
+        });
+
+        println!("Enter window message loop");
+        while GetMessageW(&mut msg, NULL as HWND, 0, 0) != 0 {
+            match msg.message {
+                WM_USER_CREATE_WINDOW => {
+                    println!("Received WM_USER_CREATE_WINDOW");
+                    let params = &*(msg.lParam as *const CreateWindowParam);
+                    let hwnd = create_window(
+                        INSTANCE.hinstance,
+                        INSTANCE.window_class.name.as_ptr(),
+                        params.title,
+                    );
+                    params.sender.send(hwnd).unwrap();
+                }
+                _ => {
+                    TranslateMessage(&msg);
+                    DispatchMessageW(&msg);
+                }
+            }
+        }
     }
-    game::start_desktop(&mut win32);
 }
 
 unsafe fn create_window(hinstance: HINSTANCE, class_name: LPCWSTR, title: LPCWSTR) -> HWND {

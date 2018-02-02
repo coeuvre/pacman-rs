@@ -8,6 +8,6 @@ gl = { path = "gl" }
 lazy_static = "1.0"
 
 [target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = ["winuser", "libloaderapi", "shellscalingapi", "errhandlingapi"] }
+winapi = { version = "0.3", features = ["winuser", "libloaderapi", "shellscalingapi", "errhandlingapi", "processthreadsapi"] }
 
 [workspace]
