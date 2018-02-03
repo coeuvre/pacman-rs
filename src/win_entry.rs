@@ -10,6 +10,7 @@ use winapi::um::errhandlingapi::GetLastError;
 use winapi::um::libloaderapi::*;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use winapi::um::processthreadsapi::GetCurrentThreadId;
+use winapi::um::profileapi::QueryPerformanceCounter;
 use game;
 use game::*;
 use lazy_static;
@@ -186,7 +187,7 @@ fn run_on_main_thread<F, T>(f: F) -> T where F: Fn() -> T {
         f: ptr as *const &Fn() -> *mut c_void as *const c_void,
     };
 
-    unsafe { 
+    unsafe {
         PostThreadMessageW(
             INSTANCE.main_thread_id,
             WM_USER_RUN,
@@ -209,8 +210,13 @@ impl Win32Platform {
 
 impl Platform for Win32Platform {
     fn performance_counter() -> u64 {
-        0
+        unsafe {
+            let mut counter = ::std::mem::uninitialized();
+            QueryPerformanceCounter(&mut counter);
+            *counter.QuadPart() as u64
+        }
     }
+
     fn performance_fraquency() -> u64 {
         0
     }
@@ -256,7 +262,7 @@ impl Desktop for Win32Platform {
                 hwnd,
                 hdc: GetDC(hwnd),
                 receiver,
-            })     
+            })
         }
     }
 }

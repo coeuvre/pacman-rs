@@ -13,6 +13,7 @@ pub trait Desktop: Platform {
     fn create_window(&mut self) -> Result<Self::Window, String>;
 }
 
+#[derive(Debug)]
 pub enum WindowEvent {
     CloseRequested,
 }
@@ -36,7 +37,9 @@ pub trait CurrentGlContext<'a> {
     fn swap_buffers(&mut self) -> Result<(), String>;
 }
 
-fn update(_dt: f32) {}
+fn update<D>(_dt: f32) where D: Desktop {
+    println!("Updating at {}", D::performance_counter());
+}
 
 fn render() {}
 
@@ -61,8 +64,6 @@ where
         unsafe { CStr::from_ptr(gl::GetString(gl::VERSION) as *const ::std::os::raw::c_char) };
     println!("OpenGL Version {}", glversion.to_str().unwrap());
 
-    D::performance_counter();
-
     'game: loop {
         for event in window.poll_events() {
             match event {
@@ -70,7 +71,7 @@ where
             }
         }
 
-        update(0.0);
+        update::<D>(0.0);
 
         render();
 
