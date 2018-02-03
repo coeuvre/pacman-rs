@@ -102,6 +102,15 @@ impl<'a> CurrentGlContext<'a> for CurrentWin32GlContext<'a> {
         }
         Ok(p as *const c_void)
     }
+
+    fn swap_buffers(&mut self) -> Result<(), String> {
+        run_on_main_thread(|| {
+            unsafe {
+                SwapBuffers(self.gl_ctx.hdc);
+            }
+        });
+        Ok(())
+    }
 }
 
 impl<'a> Drop for CurrentWin32GlContext<'a> {
@@ -162,13 +171,15 @@ impl Win32Instance {
     }
 }
 
+unsafe impl Sync for Win32Instance {}
+
 fn run_on_main_thread<F, T>(f: F) -> T where F: Fn() -> T {
     let (sender, receiver) = channel();
-    let mut main_thread_fn = || {
+    let main_thread_fn = || {
         let t = f();
         Box::into_raw(Box::new(t)) as *mut c_void
     };
-    let mut fn_trait_obj: &Fn() -> *mut c_void = &main_thread_fn;
+    let fn_trait_obj: &Fn() -> *mut c_void = &main_thread_fn;
     let ptr: & &Fn() -> *mut c_void = &fn_trait_obj;
     let param = RunParam {
         sender,
@@ -188,8 +199,6 @@ fn run_on_main_thread<F, T>(f: F) -> T where F: Fn() -> T {
     }
 }
 
-unsafe impl Sync for Win32Instance {}
-
 struct Win32Platform {}
 
 impl Win32Platform {
@@ -207,10 +216,10 @@ impl Platform for Win32Platform {
     }
 }
 
-impl GlDesktop for Win32Platform {
-    type GlWindow = Win32Window;
+impl Desktop for Win32Platform {
+    type Window = Win32Window;
 
-    fn create_window(&mut self) -> Result<Self::GlWindow, String> {
+    fn create_window(&mut self) -> Result<Self::Window, String> {
         let title = wcstr!("Pac-Mac");
 
         unsafe {
@@ -252,32 +261,31 @@ impl GlDesktop for Win32Platform {
     }
 }
 
-enum WindowMessage {
-    CloseRequested,
-}
-
 struct Win32Window {
     hwnd: HWND,
     hdc: HDC,
-    receiver: Receiver<WindowMessage>,
+    receiver: Receiver<WindowEvent>,
 }
 
 struct WindowState {
-    sender: Sender<WindowMessage>,
+    sender: Sender<WindowEvent>,
 }
 
-impl GlWindow for Win32Window {
+impl Win32Window {
+    pub fn handle_event(&mut self, _event: &WindowEvent) {
+
+    }
+}
+
+impl Window for Win32Window {
     type GlContext = Win32GlContext;
 
     fn create_gl_context(&mut self) -> Result<Self::GlContext, String> {
         unsafe { Ok(Win32GlContext::new(self.hdc)) }
     }
 
-    fn swap_buffers(&mut self) -> Result<(), String> {
-        unsafe {
-            SwapBuffers(self.hdc);
-        }
-        Ok(())
+    fn poll_events<'a>(&'a mut self) -> Box<'a + Iterator<Item=WindowEvent>> {
+        Box::new(PollEventIter { window: self })
     }
 }
 
@@ -290,6 +298,22 @@ impl Drop for Win32Window {
                 DestroyWindow(self.hwnd);
             }
         })
+    }
+}
+
+pub struct PollEventIter<'a> {
+    window: &'a mut Win32Window,
+}
+
+impl<'a> Iterator for PollEventIter<'a> {
+    type Item = WindowEvent;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let event = self.window.receiver.try_recv().ok();
+        if let Some(ref event) = event {
+            self.window.handle_event(event);
+        }
+        event
     }
 }
 
@@ -371,7 +395,7 @@ unsafe extern "system" fn window_proc(
 
     match msg {
         WM_CLOSE => {
-            state.sender.send(WindowMessage::CloseRequested).unwrap();
+            state.sender.send(WindowEvent::CloseRequested).unwrap();
         }
         WM_DESTROY => {
             Box::from_raw(state);

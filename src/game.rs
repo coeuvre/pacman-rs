@@ -2,6 +2,30 @@ use std::os::raw::c_void;
 use std::ffi::CStr;
 use gl;
 
+pub trait Platform {
+    fn performance_counter() -> u64;
+    fn performance_fraquency() -> u64;
+}
+
+pub trait Desktop: Platform {
+    type Window: Window;
+
+    fn create_window(&mut self) -> Result<Self::Window, String>;
+}
+
+pub enum WindowEvent {
+    CloseRequested,
+}
+
+pub trait Window {
+    type GlContext: GlContext;
+
+    fn create_gl_context(&mut self) -> Result<Self::GlContext, String>;
+
+    // FIXME(coeuvre): Use generic associated types when it is landed at stable channel
+    fn poll_events<'a>(&'a mut self) -> Box<'a + Iterator<Item=WindowEvent>>;
+}
+
 pub trait GlContext: Send {
     // FIXME(coeuvre): Use generic associated types when it is landed at stable channel
     fn make_current<'a>(&'a mut self) -> Result<Box<CurrentGlContext + 'a>, String>;
@@ -9,23 +33,6 @@ pub trait GlContext: Send {
 
 pub trait CurrentGlContext<'a> {
     unsafe fn proc_address(&self, name: &str) -> Result<*const c_void, String>;
-}
-
-pub trait Platform {
-    fn performance_counter() -> u64;
-    fn performance_fraquency() -> u64;
-}
-
-pub trait GlDesktop: Platform {
-    type GlWindow: GlWindow;
-
-    fn create_window(&mut self) -> Result<Self::GlWindow, String>;
-}
-
-pub trait GlWindow {
-    type GlContext: GlContext;
-
-    fn create_gl_context(&mut self) -> Result<Self::GlContext, String>;
     fn swap_buffers(&mut self) -> Result<(), String>;
 }
 
@@ -35,13 +42,11 @@ fn render() {}
 
 pub fn start_desktop<D>(desktop: &mut D)
 where
-    D: GlDesktop,
+    D: Desktop,
 {
-    println!("Starting desktop");
-
     let mut window = desktop.create_window().unwrap();
     let mut gl_ctx = window.create_gl_context().unwrap();
-    let current_gl_ctx = gl_ctx.make_current().unwrap();
+    let mut current_gl_ctx = gl_ctx.make_current().unwrap();
 
     unsafe {
         gl::load_with(|s| current_gl_ctx.proc_address(s).unwrap());
@@ -56,11 +61,19 @@ where
         unsafe { CStr::from_ptr(gl::GetString(gl::VERSION) as *const ::std::os::raw::c_char) };
     println!("OpenGL Version {}", glversion.to_str().unwrap());
 
-    // 'game: loop {
-    //     update(0.0);
+    D::performance_counter();
 
-    //     render();
+    'game: loop {
+        for event in window.poll_events() {
+            match event {
+                WindowEvent::CloseRequested => break 'game,
+            }
+        }
 
-    //     window.swap_buffers().unwrap();
-    // }
+        update(0.0);
+
+        render();
+
+        current_gl_ctx.swap_buffers().unwrap();
+    }
 }
