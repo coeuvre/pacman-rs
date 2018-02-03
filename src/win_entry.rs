@@ -162,13 +162,17 @@ impl Win32Instance {
     }
 }
 
-fn run_on_main_thread<F>(mut f: F) where F: FnMut() {
+fn run_on_main_thread<F, T>(f: F) -> T where F: Fn() -> T {
     let (sender, receiver) = channel();
-    let mut fn_trait_obj: &mut FnMut() = &mut f;
-    let ptr: &mut &mut FnMut() = &mut fn_trait_obj;
+    let mut main_thread_fn = || {
+        let t = f();
+        Box::into_raw(Box::new(t)) as *mut c_void
+    };
+    let mut fn_trait_obj: &Fn() -> *mut c_void = &main_thread_fn;
+    let ptr: & &Fn() -> *mut c_void = &fn_trait_obj;
     let param = RunParam {
         sender,
-        f: ptr as *mut &mut FnMut() as *mut c_void,
+        f: ptr as *const &Fn() -> *mut c_void as *const c_void,
     };
 
     unsafe { 
@@ -178,9 +182,10 @@ fn run_on_main_thread<F>(mut f: F) where F: FnMut() {
             0,
             &param as *const RunParam as LPARAM,
         );
-    }
 
-    receiver.recv().unwrap();
+        let t = receiver.recv().unwrap();
+        *Box::from_raw(t as *mut T)
+    }
 }
 
 unsafe impl Sync for Win32Instance {}
@@ -207,15 +212,14 @@ impl GlDesktop for Win32Platform {
 
     fn create_window(&mut self) -> Result<Self::GlWindow, String> {
         let title = wcstr!("Pac-Mac");
-        let (create_result_sender, create_result_receiver) = channel();
 
         unsafe {
-            run_on_main_thread(|| {
+            let (hwnd, receiver) = run_on_main_thread(|| {
                 let style = WS_OVERLAPPEDWINDOW ^ WS_THICKFRAME ^ WS_MAXIMIZEBOX;
                 let ex_style = 0;
 
-                let (window_message_sender, window_message_receiver) = channel();
-                let state = Box::into_raw(Box::new(WindowState { sender: window_message_sender }));
+                let (sender, receiver) = channel();
+                let state = Box::into_raw(Box::new(WindowState { sender }));
 
                 let hwnd = CreateWindowExW(
                     ex_style,
@@ -236,14 +240,13 @@ impl GlDesktop for Win32Platform {
 
                 ShowWindow(hwnd, SW_SHOW);
 
-                create_result_sender.send((hwnd, window_message_receiver)).unwrap();
+                (hwnd, receiver)
             });
 
-            let (hwnd, window_message_receiver) = create_result_receiver.recv().unwrap();
             Ok(Win32Window {
                 hwnd,
                 hdc: GetDC(hwnd),
-                receiver: window_message_receiver,
+                receiver,
             })     
         }
     }
@@ -293,8 +296,8 @@ impl Drop for Win32Window {
 const WM_USER_RUN: UINT = WM_USER;
 
 struct RunParam {
-    f: *mut c_void,
-    sender: Sender<()>,
+    f: *const c_void,
+    sender: Sender<*mut c_void>,
 }
 
 pub fn start() {
@@ -321,9 +324,9 @@ pub fn start() {
             match msg.message {
                 WM_USER_RUN => {
                     let param = &*(msg.lParam as *const RunParam);
-                    let f = &mut *(param.f as *mut &mut FnMut());
-                    f();
-                    param.sender.send(()).unwrap();
+                    let f = &*(param.f as *const &Fn() -> *mut c_void);
+                    let t = f();
+                    param.sender.send(t).unwrap();
                 }
                 _ => {
                     TranslateMessage(&msg);
