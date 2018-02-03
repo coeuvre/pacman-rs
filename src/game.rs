@@ -56,11 +56,11 @@ where
         unsafe { CStr::from_ptr(gl::GetString(gl::VERSION) as *const ::std::os::raw::c_char) };
     println!("OpenGL Version {}", glversion.to_str().unwrap());
 
-    'game: loop {
-        update(0.0);
+    // 'game: loop {
+    //     update(0.0);
 
-        render();
+    //     render();
 
-        window.swap_buffers().unwrap();
-    }
+    //     window.swap_buffers().unwrap();
+    // }
 }

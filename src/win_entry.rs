@@ -8,7 +8,7 @@ use winapi::um::winuser::*;
 use winapi::um::wingdi::*;
 use winapi::um::errhandlingapi::GetLastError;
 use winapi::um::libloaderapi::*;
-use std::sync::mpsc::{channel, Sender};
+use std::sync::mpsc::{channel, Receiver, Sender};
 use winapi::um::processthreadsapi::GetCurrentThreadId;
 use game;
 use game::*;
@@ -128,7 +128,7 @@ impl WindowClass {
             wc.hCursor = LoadCursorW(0 as HINSTANCE, IDC_ARROW);
             wc.hInstance = hinstance;
             wc.lpszClassName = name.as_ptr();
-            wc.cbWndExtra = 0;
+            wc.cbWndExtra = ::std::mem::size_of::<usize>() as i32;
 
             RegisterClassExW(&wc);
         }
@@ -162,6 +162,27 @@ impl Win32Instance {
     }
 }
 
+fn run_on_main_thread<F>(mut f: F) where F: FnMut() {
+    let (sender, receiver) = channel();
+    let mut fn_trait_obj: &mut FnMut() = &mut f;
+    let ptr: &mut &mut FnMut() = &mut fn_trait_obj;
+    let param = RunParam {
+        sender,
+        f: ptr as *mut &mut FnMut() as *mut c_void,
+    };
+
+    unsafe { 
+        PostThreadMessageW(
+            INSTANCE.main_thread_id,
+            WM_USER_RUN,
+            0,
+            &param as *const RunParam as LPARAM,
+        );
+    }
+
+    receiver.recv().unwrap();
+}
+
 unsafe impl Sync for Win32Instance {}
 
 struct Win32Platform {}
@@ -182,46 +203,67 @@ impl Platform for Win32Platform {
 }
 
 impl GlDesktop for Win32Platform {
-    type GlWindow = Win32GlWindow;
+    type GlWindow = Win32Window;
 
     fn create_window(&mut self) -> Result<Self::GlWindow, String> {
         let title = wcstr!("Pac-Mac");
-        let (sender, receiver) = channel();
-        let params = CreateWindowParam {
-            sender: sender,
-            title: title.as_ptr(),
-        };
+        let (create_result_sender, create_result_receiver) = channel();
 
         unsafe {
-            println!("Posting thread message...");
-            PostThreadMessageW(
-                INSTANCE.main_thread_id,
-                WM_USER_CREATE_WINDOW,
-                0,
-                &params as *const CreateWindowParam as LPARAM,
-            );
-            println!("Last error {}", GetLastError());
+            run_on_main_thread(|| {
+                let style = WS_OVERLAPPEDWINDOW ^ WS_THICKFRAME ^ WS_MAXIMIZEBOX;
+                let ex_style = 0;
 
-            println!("Waiting for response...");
+                let (window_message_sender, window_message_receiver) = channel();
+                let state = Box::into_raw(Box::new(WindowState { sender: window_message_sender }));
 
-            let hwnd = receiver.recv().unwrap();
+                let hwnd = CreateWindowExW(
+                    ex_style,
+                    INSTANCE.window_class.name.as_ptr(),
+                    title.as_ptr(),
+                    style,
+                    CW_USEDEFAULT,
+                    CW_USEDEFAULT,
+                    1200,
+                    740,
+                    0 as HWND,
+                    0 as HMENU,
+                    INSTANCE.hinstance,
+                    0 as LPVOID,
+                );
 
-            println!("Get hwnd");
+                SetWindowLongPtr(hwnd, 0, state as isize);
 
-            Ok(Win32GlWindow {
+                ShowWindow(hwnd, SW_SHOW);
+
+                create_result_sender.send((hwnd, window_message_receiver)).unwrap();
+            });
+
+            let (hwnd, window_message_receiver) = create_result_receiver.recv().unwrap();
+            Ok(Win32Window {
                 hwnd,
                 hdc: GetDC(hwnd),
-            })
+                receiver: window_message_receiver,
+            })     
         }
     }
 }
 
-struct Win32GlWindow {
-    hwnd: HWND,
-    hdc: HDC,
+enum WindowMessage {
+    CloseRequested,
 }
 
-impl GlWindow for Win32GlWindow {
+struct Win32Window {
+    hwnd: HWND,
+    hdc: HDC,
+    receiver: Receiver<WindowMessage>,
+}
+
+struct WindowState {
+    sender: Sender<WindowMessage>,
+}
+
+impl GlWindow for Win32Window {
     type GlContext = Win32GlContext;
 
     fn create_gl_context(&mut self) -> Result<Self::GlContext, String> {
@@ -236,21 +278,23 @@ impl GlWindow for Win32GlWindow {
     }
 }
 
-unsafe impl Send for Win32GlWindow {}
+unsafe impl Send for Win32Window {}
 
-impl Drop for Win32GlWindow {
+impl Drop for Win32Window {
     fn drop(&mut self) {
-        unsafe {
-            DestroyWindow(self.hwnd);
-        }
+        run_on_main_thread(|| {
+            unsafe {
+                DestroyWindow(self.hwnd);
+            }
+        })
     }
 }
 
-const WM_USER_CREATE_WINDOW: UINT = WM_USER + 1;
+const WM_USER_RUN: UINT = WM_USER;
 
-struct CreateWindowParam {
-    sender: Sender<HWND>,
-    title: LPCWSTR,
+struct RunParam {
+    f: *mut c_void,
+    sender: Sender<()>,
 }
 
 pub fn start() {
@@ -268,20 +312,18 @@ pub fn start() {
 
         ::std::thread::spawn(move || {
             game::start_desktop(&mut win32);
+            run_on_main_thread(|| {
+                PostQuitMessage(0);
+            })
         });
 
-        println!("Enter window message loop");
         while GetMessageW(&mut msg, NULL as HWND, 0, 0) != 0 {
             match msg.message {
-                WM_USER_CREATE_WINDOW => {
-                    println!("Received WM_USER_CREATE_WINDOW");
-                    let params = &*(msg.lParam as *const CreateWindowParam);
-                    let hwnd = create_window(
-                        INSTANCE.hinstance,
-                        INSTANCE.window_class.name.as_ptr(),
-                        params.title,
-                    );
-                    params.sender.send(hwnd).unwrap();
+                WM_USER_RUN => {
+                    let param = &*(msg.lParam as *const RunParam);
+                    let f = &mut *(param.f as *mut &mut FnMut());
+                    f();
+                    param.sender.send(()).unwrap();
                 }
                 _ => {
                     TranslateMessage(&msg);
@@ -292,28 +334,28 @@ pub fn start() {
     }
 }
 
-unsafe fn create_window(hinstance: HINSTANCE, class_name: LPCWSTR, title: LPCWSTR) -> HWND {
-    let style = WS_OVERLAPPEDWINDOW ^ WS_THICKFRAME ^ WS_MAXIMIZEBOX;
-    let ex_style = 0;
+#[allow(non_snake_case)]
+#[cfg(target_arch = "x86_64")]
+unsafe fn SetWindowLongPtr(hwnd: HWND, index: i32, data: isize) {
+    SetWindowLongPtrW(hwnd, index, data);
+}
 
-    let hwnd = CreateWindowExW(
-        ex_style,
-        class_name,
-        title,
-        style,
-        CW_USEDEFAULT,
-        CW_USEDEFAULT,
-        1200,
-        740,
-        0 as HWND,
-        0 as HMENU,
-        hinstance,
-        0 as LPVOID,
-    );
+#[allow(non_snake_case)]
+#[cfg(target_arch = "x86")]
+unsafe fn SetWindowLongPtr(hwnd: HWND, index: i32, data: isize) {
+    SetWindowLongW(hwnd, index, data);
+}
 
-    ShowWindow(hwnd, SW_SHOW);
+#[allow(non_snake_case)]
+#[cfg(target_arch = "x86_64")]
+unsafe fn GetWindowLongPtr(hwnd: HWND, index: i32) -> isize {
+    GetWindowLongPtrW(hwnd, index)
+}
 
-    hwnd
+#[allow(non_snake_case)]
+#[cfg(target_arch = "x86")]
+unsafe fn GetWindowLongPtr(hwnd: HWND, index: i32) -> isize {
+    GetWindowLongW(hwnd, index)
 }
 
 unsafe extern "system" fn window_proc(
@@ -322,10 +364,14 @@ unsafe extern "system" fn window_proc(
     wparam: WPARAM,
     lparam: LPARAM,
 ) -> LRESULT {
+    let state = &mut *(GetWindowLongPtr(hwnd, 0) as *mut WindowState);
+
     match msg {
-        WM_CLOSE => {}
+        WM_CLOSE => {
+            state.sender.send(WindowMessage::CloseRequested).unwrap();
+        }
         WM_DESTROY => {
-            PostQuitMessage(0);
+            Box::from_raw(state);
         }
         _ => return DefWindowProcW(hwnd, msg, wparam, lparam),
     }
