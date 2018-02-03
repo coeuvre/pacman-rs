@@ -9,7 +9,6 @@ use winapi::um::wingdi::*;
 use winapi::um::errhandlingapi::GetLastError;
 use winapi::um::libloaderapi::*;
 use std::sync::mpsc::{channel, Receiver, Sender};
-use winapi::um::processthreadsapi::GetCurrentThreadId;
 use winapi::um::profileapi::QueryPerformanceCounter;
 use game;
 use game::*;
@@ -29,6 +28,7 @@ lazy_static! {
 }
 
 pub struct Win32GlContext {
+    hwnd: HWND,
     hdc: HDC,
     hglrc: HGLRC,
     opengl32_module: HMODULE,
@@ -39,7 +39,7 @@ pub struct CurrentWin32GlContext<'a> {
 }
 
 impl Win32GlContext {
-    pub unsafe fn new(hdc: HDC) -> Win32GlContext {
+    pub unsafe fn new(hwnd: HWND, hdc: HDC) -> Win32GlContext {
         let opengl32_module = LoadLibraryA("opengl32.dll\0".as_ptr() as LPCSTR);
         assert_ne!(opengl32_module, 0 as HMODULE, "Failed to load opengl32.dll");
 
@@ -58,6 +58,7 @@ impl Win32GlContext {
         let hglrc = wglCreateContext(hdc);
 
         Win32GlContext {
+            hwnd,
             hdc,
             hglrc,
             opengl32_module,
@@ -105,7 +106,7 @@ impl<'a> CurrentGlContext<'a> for CurrentWin32GlContext<'a> {
     }
 
     fn swap_buffers(&mut self) -> Result<(), String> {
-        run_on_main_thread(|| {
+        run_on_window_thread(self.gl_ctx.hwnd, || {
             unsafe {
                 SwapBuffers(self.gl_ctx.hdc);
             }
@@ -158,7 +159,6 @@ impl Drop for WindowClass {
 struct Win32Instance {
     hinstance: HINSTANCE,
     window_class: WindowClass,
-    main_thread_id: DWORD,
 }
 
 impl Win32Instance {
@@ -167,38 +167,13 @@ impl Win32Instance {
         Win32Instance {
             hinstance,
             window_class: WindowClass::new(hinstance),
-            main_thread_id: unsafe { GetCurrentThreadId() },
         }
     }
 }
 
 unsafe impl Sync for Win32Instance {}
 
-fn run_on_main_thread<F, T>(f: F) -> T where F: Fn() -> T {
-    let (sender, receiver) = channel();
-    let main_thread_fn = || {
-        let t = f();
-        Box::into_raw(Box::new(t)) as *mut c_void
-    };
-    let fn_trait_obj: &Fn() -> *mut c_void = &main_thread_fn;
-    let ptr: & &Fn() -> *mut c_void = &fn_trait_obj;
-    let param = RunParam {
-        sender,
-        f: ptr as *const &Fn() -> *mut c_void as *const c_void,
-    };
 
-    unsafe {
-        PostThreadMessageW(
-            INSTANCE.main_thread_id,
-            WM_USER_RUN,
-            0,
-            &param as *const RunParam as LPARAM,
-        );
-
-        let t = receiver.recv().unwrap();
-        *Box::from_raw(t as *mut T)
-    }
-}
 
 struct Win32Platform {}
 
@@ -227,14 +202,15 @@ impl Desktop for Win32Platform {
 
     fn create_window(&mut self) -> Result<Self::Window, String> {
         let title = wcstr!("Pac-Mac");
+        let (create_window_result_sender, create_wnidow_result_receiver) = channel();
 
         unsafe {
-            let (hwnd, receiver) = run_on_main_thread(|| {
+            ::std::thread::spawn(move || {
                 let style = WS_OVERLAPPEDWINDOW ^ WS_THICKFRAME ^ WS_MAXIMIZEBOX;
                 let ex_style = 0;
 
-                let (sender, receiver) = channel();
-                let state = Box::into_raw(Box::new(WindowState { sender }));
+                let (window_event_sender, window_event_receiver) = channel();
+                let state = Box::into_raw(Box::new(WindowState { sender: window_event_sender }));
 
                 let hwnd = CreateWindowExW(
                     ex_style,
@@ -253,16 +229,22 @@ impl Desktop for Win32Platform {
 
                 SetWindowLongPtr(hwnd, 0, state as isize);
 
+                create_window_result_sender.send(Win32Window {
+                    hwnd,
+                    hdc: GetDC(hwnd),
+                    receiver: window_event_receiver,
+                }).unwrap();
+
                 ShowWindow(hwnd, SW_SHOW);
 
-                (hwnd, receiver)
+                let mut msg = ::std::mem::uninitialized();
+                while GetMessageW(&mut msg, NULL as HWND, 0, 0) != 0 {
+                    TranslateMessage(&msg);
+                    DispatchMessageW(&msg);
+                }
             });
 
-            Ok(Win32Window {
-                hwnd,
-                hdc: GetDC(hwnd),
-                receiver,
-            })
+            Ok(create_wnidow_result_receiver.recv().unwrap())
         }
     }
 }
@@ -283,11 +265,30 @@ impl Win32Window {
     }
 }
 
+pub fn run_on_window_thread<F, T>(hwnd: HWND, f: F) -> T where F: Fn() -> T {
+    let window_thread_fn = || {
+        let t = f();
+        Box::into_raw(Box::new(t)) as *mut c_void
+    };
+    let fn_trait_obj: &Fn() -> *mut c_void = &window_thread_fn;
+    let ptr: & &Fn() -> *mut c_void = &fn_trait_obj;
+
+    unsafe {
+        let t = SendMessageW(
+            hwnd,
+            WM_USER_RUN,
+            0,
+            ptr as *const &Fn() -> *mut c_void as *const c_void as LPARAM,
+        );
+        *Box::from_raw(t as *mut T)
+    }
+}
+
 impl Window for Win32Window {
     type GlContext = Win32GlContext;
 
     fn create_gl_context(&mut self) -> Result<Self::GlContext, String> {
-        unsafe { Ok(Win32GlContext::new(self.hdc)) }
+        unsafe { Ok(Win32GlContext::new(self.hwnd, self.hdc)) }
     }
 
     fn poll_events<'a>(&'a mut self) -> Box<'a + Iterator<Item=WindowEvent>> {
@@ -299,11 +300,11 @@ unsafe impl Send for Win32Window {}
 
 impl Drop for Win32Window {
     fn drop(&mut self) {
-        run_on_main_thread(|| {
+        run_on_window_thread(self.hwnd, || {
             unsafe {
                 DestroyWindow(self.hwnd);
             }
-        })
+        });
     }
 }
 
@@ -325,46 +326,16 @@ impl<'a> Iterator for PollEventIter<'a> {
 
 const WM_USER_RUN: UINT = WM_USER;
 
-struct RunParam {
-    f: *const c_void,
-    sender: Sender<*mut c_void>,
-}
-
 pub fn start() {
     lazy_static::initialize(&INSTANCE);
 
+    let mut win32 = Win32Platform::new().unwrap();
+
     unsafe {
-        let mut msg = ::std::mem::uninitialized();
-
         SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE);
-
-        let mut win32 = Win32Platform::new().unwrap();
-
-        // force the system to create the message queue
-        PeekMessageW(&mut msg, NULL as HWND, WM_USER, WM_USER, PM_NOREMOVE);
-
-        ::std::thread::spawn(move || {
-            game::start_desktop(&mut win32);
-            run_on_main_thread(|| {
-                PostQuitMessage(0);
-            })
-        });
-
-        while GetMessageW(&mut msg, NULL as HWND, 0, 0) != 0 {
-            match msg.message {
-                WM_USER_RUN => {
-                    let param = &*(msg.lParam as *const RunParam);
-                    let f = &*(param.f as *const &Fn() -> *mut c_void);
-                    let t = f();
-                    param.sender.send(t).unwrap();
-                }
-                _ => {
-                    TranslateMessage(&msg);
-                    DispatchMessageW(&msg);
-                }
-            }
-        }
     }
+
+    game::start_desktop(&mut win32);
 }
 
 #[allow(non_snake_case)]
@@ -402,12 +373,17 @@ unsafe extern "system" fn window_proc(
     match msg {
         WM_CLOSE => {
             state.sender.send(WindowEvent::CloseRequested).unwrap();
+            0
         }
         WM_DESTROY => {
             Box::from_raw(state);
+            PostQuitMessage(0);
+            0
         }
-        _ => return DefWindowProcW(hwnd, msg, wparam, lparam),
+        WM_USER_RUN => {
+            let f = &*(lparam as *const &Fn() -> *mut c_void);
+            f() as LRESULT
+        }
+        _ => DefWindowProcW(hwnd, msg, wparam, lparam),
     }
-
-    return 0;
 }
