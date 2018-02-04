@@ -1,5 +1,6 @@
 use std::ffi::CString;
 use std::os::raw::*;
+use std::sync::mpsc::{channel, Receiver, Sender};
 use winapi::um::shellscalingapi::*;
 use winapi::shared::ntdef::*;
 use winapi::shared::windef::*;
@@ -8,11 +9,9 @@ use winapi::um::winuser::*;
 use winapi::um::wingdi::*;
 use winapi::um::errhandlingapi::GetLastError;
 use winapi::um::libloaderapi::*;
-use std::sync::mpsc::{channel, Receiver, Sender};
 use winapi::um::profileapi::QueryPerformanceCounter;
-use game;
-use game::*;
 use lazy_static;
+use super::*;
 
 macro_rules! wcstr {
     ($e:expr) => {{
@@ -27,19 +26,19 @@ lazy_static! {
     static ref INSTANCE: Win32Instance = Win32Instance::new();
 }
 
-pub struct Win32GlContext {
+pub struct GlContext {
     hwnd: HWND,
     hdc: HDC,
     hglrc: HGLRC,
     opengl32_module: HMODULE,
 }
 
-pub struct CurrentWin32GlContext<'a> {
-    gl_ctx: &'a mut Win32GlContext,
+pub struct CurrentGlContext<'a> {
+    gl_ctx: &'a mut GlContext,
 }
 
-impl Win32GlContext {
-    pub unsafe fn new(hwnd: HWND, hdc: HDC) -> Win32GlContext {
+impl GlContext {
+    unsafe fn new(hwnd: HWND, hdc: HDC) -> GlContext {
         let opengl32_module = LoadLibraryA("opengl32.dll\0".as_ptr() as LPCSTR);
         assert_ne!(opengl32_module, 0 as HMODULE, "Failed to load opengl32.dll");
 
@@ -57,7 +56,7 @@ impl Win32GlContext {
 
         let hglrc = wglCreateContext(hdc);
 
-        Win32GlContext {
+        GlContext {
             hwnd,
             hdc,
             hglrc,
@@ -66,7 +65,7 @@ impl Win32GlContext {
     }
 }
 
-impl Drop for Win32GlContext {
+impl Drop for GlContext {
     fn drop(&mut self) {
         unsafe {
             wglDeleteContext(self.hglrc);
@@ -76,24 +75,24 @@ impl Drop for Win32GlContext {
     }
 }
 
-unsafe impl Send for Win32GlContext {}
+unsafe impl Send for GlContext {}
 
-impl GlContext for Win32GlContext {
-    fn make_current<'a>(&'a mut self) -> Result<Box<CurrentGlContext + 'a>, String> {
+impl GlContext {
+    pub fn make_current<'a>(&'a mut self) -> Result<CurrentGlContext<'a>, String> {
         unsafe {
             let success = wglMakeCurrent(self.hdc, self.hglrc);
             if success == 0 {
                 Err(format!("Error {}", GetLastError()))
             } else {
-                Ok(Box::new(CurrentWin32GlContext { gl_ctx: self }))
+                Ok(CurrentGlContext { gl_ctx: self })
             }
         }
     }
 }
 
-impl<'a> CurrentGlContext<'a> for CurrentWin32GlContext<'a> {
+impl<'a> CurrentGlContext<'a> {
     // See https://www.khronos.org/opengl/wiki/Load_OpenGL_Functions#Windows
-    unsafe fn proc_address(&self, name: &str) -> Result<*const c_void, String> {
+    pub unsafe fn proc_address(&self, name: &str) -> Result<*const c_void, String> {
         let cstring = CString::new(name).unwrap();
         let mut p = wglGetProcAddress(cstring.as_ptr()) as isize;
         match p {
@@ -105,7 +104,8 @@ impl<'a> CurrentGlContext<'a> for CurrentWin32GlContext<'a> {
         Ok(p as *const c_void)
     }
 
-    fn swap_buffers(&mut self) -> Result<(), String> {
+    pub fn swap_buffers(&mut self) -> Result<(), String> {
+        // TODO(coeuvre): Flush the drawing commands before calling SwapBuffers
         run_on_window_thread(self.gl_ctx.hwnd, || {
             unsafe {
                 SwapBuffers(self.gl_ctx.hdc);
@@ -115,7 +115,7 @@ impl<'a> CurrentGlContext<'a> for CurrentWin32GlContext<'a> {
     }
 }
 
-impl<'a> Drop for CurrentWin32GlContext<'a> {
+impl<'a> Drop for CurrentGlContext<'a> {
     fn drop(&mut self) {
         unsafe {
             wglMakeCurrent(NULL as HDC, NULL as HGLRC);
@@ -173,34 +173,30 @@ impl Win32Instance {
 
 unsafe impl Sync for Win32Instance {}
 
-
-
-struct Win32Platform {}
-
-impl Win32Platform {
-    pub fn new() -> Result<Win32Platform, String> {
-        Ok(Win32Platform {})
+pub fn performance_counter() -> u64 {
+    unsafe {
+        let mut counter = ::std::mem::uninitialized();
+        QueryPerformanceCounter(&mut counter);
+        *counter.QuadPart() as u64
     }
 }
 
-impl Platform for Win32Platform {
-    fn performance_counter() -> u64 {
-        unsafe {
-            let mut counter = ::std::mem::uninitialized();
-            QueryPerformanceCounter(&mut counter);
-            *counter.QuadPart() as u64
-        }
-    }
-
-    fn performance_fraquency() -> u64 {
-        0
-    }
+pub fn performance_fraquency() -> u64 {
+    0
 }
 
-impl Desktop for Win32Platform {
-    type Window = Win32Window;
+pub struct Window {
+    hwnd: HWND,
+    hdc: HDC,
+    receiver: Receiver<WindowEvent>,
+}
 
-    fn create_window(&mut self) -> Result<Self::Window, String> {
+struct WindowState {
+    sender: Sender<WindowEvent>,
+}
+
+impl Window {
+    pub fn new() -> Result<Window, String> {
         let title = wcstr!("Pac-Mac");
         let (create_window_result_sender, create_wnidow_result_receiver) = channel();
 
@@ -229,7 +225,7 @@ impl Desktop for Win32Platform {
 
                 SetWindowLongPtr(hwnd, 0, state as isize);
 
-                create_window_result_sender.send(Win32Window {
+                create_window_result_sender.send(Window {
                     hwnd,
                     hdc: GetDC(hwnd),
                     receiver: window_event_receiver,
@@ -247,20 +243,16 @@ impl Desktop for Win32Platform {
             Ok(create_wnidow_result_receiver.recv().unwrap())
         }
     }
-}
 
-struct Win32Window {
-    hwnd: HWND,
-    hdc: HDC,
-    receiver: Receiver<WindowEvent>,
-}
+    pub fn create_gl_context(&mut self) -> Result<GlContext, String> {
+        unsafe { Ok(GlContext::new(self.hwnd, self.hdc)) }
+    }
 
-struct WindowState {
-    sender: Sender<WindowEvent>,
-}
+    pub fn poll_events<'a>(&'a mut self) -> Box<'a + Iterator<Item=WindowEvent>> {
+        Box::new(PollEventIter { window: self })
+    }
 
-impl Win32Window {
-    pub fn handle_event(&mut self, _event: &WindowEvent) {
+    fn handle_event(&mut self, _event: &WindowEvent) {
 
     }
 }
@@ -284,21 +276,9 @@ pub fn run_on_window_thread<F, T>(hwnd: HWND, f: F) -> T where F: Fn() -> T {
     }
 }
 
-impl Window for Win32Window {
-    type GlContext = Win32GlContext;
+unsafe impl Send for Window {}
 
-    fn create_gl_context(&mut self) -> Result<Self::GlContext, String> {
-        unsafe { Ok(Win32GlContext::new(self.hwnd, self.hdc)) }
-    }
-
-    fn poll_events<'a>(&'a mut self) -> Box<'a + Iterator<Item=WindowEvent>> {
-        Box::new(PollEventIter { window: self })
-    }
-}
-
-unsafe impl Send for Win32Window {}
-
-impl Drop for Win32Window {
+impl Drop for Window {
     fn drop(&mut self) {
         run_on_window_thread(self.hwnd, || {
             unsafe {
@@ -309,7 +289,7 @@ impl Drop for Win32Window {
 }
 
 pub struct PollEventIter<'a> {
-    window: &'a mut Win32Window,
+    window: &'a mut Window,
 }
 
 impl<'a> Iterator for PollEventIter<'a> {
@@ -326,16 +306,14 @@ impl<'a> Iterator for PollEventIter<'a> {
 
 const WM_USER_RUN: UINT = WM_USER;
 
-pub fn start() {
+pub fn init() -> Result<(), String> {
     lazy_static::initialize(&INSTANCE);
-
-    let mut win32 = Win32Platform::new().unwrap();
 
     unsafe {
         SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE);
     }
 
-    game::start_desktop(&mut win32);
+    Ok(())
 }
 
 #[allow(non_snake_case)]

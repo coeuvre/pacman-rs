@@ -56,6 +56,13 @@ name = "pacman-rs"
 version = "0.1.0"
 dependencies = [
  "gl 0.1.0",
+ "platform 0.1.0",
+]
+
+[[package]]
+name = "platform"
+version = "0.1.0"
+dependencies = [
  "lazy_static 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
