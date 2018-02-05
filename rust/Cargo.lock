@@ -52,7 +52,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pacman-rs"
+name = "pacman"
 version = "0.1.0"
 dependencies = [
  "gl 0.1.0",

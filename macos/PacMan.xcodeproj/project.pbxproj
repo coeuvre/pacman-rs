@@ -14,6 +14,8 @@
 		AB2015E420284A6B005C7B98 /* PacManTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB2015E320284A6B005C7B98 /* PacManTests.swift */; };
 		AB2015EF20284A6B005C7B98 /* PacManUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB2015EE20284A6B005C7B98 /* PacManUITests.swift */; };
 		AB2015FD20284B73005C7B98 /* MyOpenGLView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB2015FC20284B73005C7B98 /* MyOpenGLView.swift */; };
+		AB20160D20285EF5005C7B98 /* libpacman.a in Frameworks */ = {isa = PBXBuildFile; fileRef = AB20160C20285EF5005C7B98 /* libpacman.a */; };
+		AB201613202866AA005C7B98 /* libresolv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = AB201612202866AA005C7B98 /* libresolv.tbd */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -48,6 +50,10 @@
 		AB2015EE20284A6B005C7B98 /* PacManUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacManUITests.swift; sourceTree = "<group>"; };
 		AB2015F020284A6B005C7B98 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AB2015FC20284B73005C7B98 /* MyOpenGLView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyOpenGLView.swift; sourceTree = "<group>"; };
+		AB20160220285213005C7B98 /* build-rust.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "build-rust.sh"; sourceTree = "<group>"; };
+		AB20160C20285EF5005C7B98 /* libpacman.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libpacman.a; path = ../rust/target/debug/libpacman.a; sourceTree = "<group>"; };
+		AB2016112028638E005C7B98 /* PacMan-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "PacMan-Bridging-Header.h"; sourceTree = "<group>"; };
+		AB201612202866AA005C7B98 /* libresolv.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libresolv.tbd; path = usr/lib/libresolv.tbd; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -55,6 +61,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AB201613202866AA005C7B98 /* libresolv.tbd in Frameworks */,
+				AB20160D20285EF5005C7B98 /* libpacman.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,10 +86,12 @@
 		AB2015C420284A6B005C7B98 = {
 			isa = PBXGroup;
 			children = (
+				AB20160220285213005C7B98 /* build-rust.sh */,
 				AB2015CF20284A6B005C7B98 /* PacMan */,
 				AB2015E220284A6B005C7B98 /* PacManTests */,
 				AB2015ED20284A6B005C7B98 /* PacManUITests */,
 				AB2015CE20284A6B005C7B98 /* Products */,
+				AB20160B20285EF5005C7B98 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -105,6 +115,7 @@
 				AB2015D620284A6B005C7B98 /* Main.storyboard */,
 				AB2015D920284A6B005C7B98 /* Info.plist */,
 				AB2015DA20284A6B005C7B98 /* PacMan.entitlements */,
+				AB2016112028638E005C7B98 /* PacMan-Bridging-Header.h */,
 			);
 			path = PacMan;
 			sourceTree = "<group>";
@@ -127,6 +138,15 @@
 			path = PacManUITests;
 			sourceTree = "<group>";
 		};
+		AB20160B20285EF5005C7B98 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				AB201612202866AA005C7B98 /* libresolv.tbd */,
+				AB20160C20285EF5005C7B98 /* libpacman.a */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -134,6 +154,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = AB2015F320284A6B005C7B98 /* Build configuration list for PBXNativeTarget "PacMan" */;
 			buildPhases = (
+				AB20160E20285F58005C7B98 /* Build Rust */,
 				AB2015C920284A6B005C7B98 /* Sources */,
 				AB2015CA20284A6B005C7B98 /* Frameworks */,
 				AB2015CB20284A6B005C7B98 /* Resources */,
@@ -254,6 +275,23 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		AB20160E20285F58005C7B98 /* Build Rust */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Build Rust";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "${SRCROOT}/build-rust.sh";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		AB2015C920284A6B005C7B98 /* Sources */ = {
@@ -426,6 +464,8 @@
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = me.coeuvre.PacMan;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/../rust";
+				SWIFT_OBJC_BRIDGING_HEADER = "PacMan/PacMan-Bridging-Header.h";
 				SWIFT_VERSION = 4.0;
 			};
 			name = Debug;
@@ -441,6 +481,8 @@
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = me.coeuvre.PacMan;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/../rust";
+				SWIFT_OBJC_BRIDGING_HEADER = "PacMan/PacMan-Bridging-Header.h";
 				SWIFT_VERSION = 4.0;
 			};
 			name = Release;

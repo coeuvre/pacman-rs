@@ -1,7 +1,10 @@
 [package]
-name = "pacman-rs"
+name = "pacman"
 version = "0.1.0"
 authors = ["Coeuvre Wong <coeuvre@gmail.com>"]
+
+[lib]
+crate-type = ["staticlib"]
 
 [dependencies]
 gl = { path = "gl" }
