@@ -27,7 +27,9 @@ class MyOpenGLView: NSOpenGLView {
     
     override func prepareOpenGL() {
         super.prepareOpenGL()
-        
+
+//        pacman_init(getProcAddress)
+
         func displayLinkOutputCallback(displayLink: CVDisplayLink, _ now: UnsafePointer<CVTimeStamp>, _ outputTime: UnsafePointer<CVTimeStamp>, _ flagsIn: CVOptionFlags, _ flagsOut: UnsafeMutablePointer<CVOptionFlags>, _ displayLinkContext: UnsafeMutableRawPointer?) -> CVReturn {
             unsafeBitCast(displayLinkContext, to: MyOpenGLView.self).renderFrame()
             return kCVReturnSuccess
@@ -44,6 +46,17 @@ class MyOpenGLView: NSOpenGLView {
     }
     
     func renderFrame() {
-        print(add(1, 2))
+        pacman_update()
+        pacman_render()
     }
 }
+//
+//func getProcAddress(name: UnsafePointer<CChar>!) -> UnsafeMutableRawPointer! {
+//    let name = String(describing: name)
+//    switch name {
+//    case "glGetString": return UnsafeMutableRawPointer(bitPattern: glGetString)
+//    default:
+//        return UnsafeMutableRawPointer(bitPattern: 0)
+//    }
+//}
+

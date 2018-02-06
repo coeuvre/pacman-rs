@@ -1,9 +1,29 @@
+extern crate gl;
+
+use std::ffi::CStr;
+use std::os::raw::*;
+
 #[no_mangle]
-pub fn add(x: i32, y: i32) -> i32 {
-    x + y
+pub unsafe extern "C" fn pacman_init(add: *const c_void) {
+    println!("init at rust side");
+    let add: extern "C" fn(i32, i32) -> i32 = ::std::mem::transmute(add);
+    println!("{}", add(1, 2));
+    // // ::std::thread::sleep_ms(1000);
+    // let glversion = CStr::from_ptr(gl::GetString(gl::VERSION) as *const ::std::os::raw::c_char);
+    // println!("OpenGL Version {}", glversion.to_str().unwrap());
 }
 
-// extern crate gl;
+#[no_mangle]
+pub unsafe extern "C" fn pacman_update() {
+
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn pacman_render() {
+    // gl::ClearColor(0.0, 0.0, 0.0, 0.0);
+    // gl::Clear(gl::COLOR_BUFFER_BIT);
+}
+
 // extern crate platform;
 
 // use std::ffi::CStr;

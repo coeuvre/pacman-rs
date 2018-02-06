@@ -5,7 +5,11 @@
 extern "C" {
 #endif
 
-int add(int x, int y);
+void pacman_init(void *(*get_proc_address)(const char *name));
+
+void pacman_update();
+
+void pacman_render();
 
 #ifdef __cplusplus
 }
