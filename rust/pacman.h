@@ -5,11 +5,11 @@
 extern "C" {
 #endif
 
-void pacman_init(void *(*get_proc_address)(const char *name));
+extern void pacman_init(int (*add)(int, int));
 
-void pacman_update();
+extern void pacman_update(void);
 
-void pacman_render();
+extern void pacman_render(void);
 
 #ifdef __cplusplus
 }

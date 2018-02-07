@@ -7,138 +7,84 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		AB2015D120284A6B005C7B98 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB2015D020284A6B005C7B98 /* AppDelegate.swift */; };
-		AB2015D320284A6B005C7B98 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB2015D220284A6B005C7B98 /* ViewController.swift */; };
-		AB2015D520284A6B005C7B98 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AB2015D420284A6B005C7B98 /* Assets.xcassets */; };
-		AB2015D820284A6B005C7B98 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AB2015D620284A6B005C7B98 /* Main.storyboard */; };
-		AB2015E420284A6B005C7B98 /* PacManTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB2015E320284A6B005C7B98 /* PacManTests.swift */; };
-		AB2015EF20284A6B005C7B98 /* PacManUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB2015EE20284A6B005C7B98 /* PacManUITests.swift */; };
-		AB2015FD20284B73005C7B98 /* MyOpenGLView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB2015FC20284B73005C7B98 /* MyOpenGLView.swift */; };
-		AB201613202866AA005C7B98 /* libresolv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = AB201612202866AA005C7B98 /* libresolv.tbd */; };
+		AB8401DB202AA63E00301449 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = AB8401DA202AA63E00301449 /* AppDelegate.m */; };
+		AB8401DE202AA63E00301449 /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = AB8401DD202AA63E00301449 /* ViewController.m */; };
+		AB8401E0202AA63E00301449 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AB8401DF202AA63E00301449 /* Assets.xcassets */; };
+		AB8401E3202AA63E00301449 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AB8401E1202AA63E00301449 /* Main.storyboard */; };
+		AB8401E6202AA63E00301449 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = AB8401E5202AA63E00301449 /* main.m */; };
+		AB8401F1202AA8F300301449 /* OpenGLView.m in Sources */ = {isa = PBXBuildFile; fileRef = AB8401F0202AA8F300301449 /* OpenGLView.m */; };
+		AB8401F4202AAC0C00301449 /* libresolv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = AB8401F3202AAC0C00301449 /* libresolv.tbd */; };
 /* End PBXBuildFile section */
 
-/* Begin PBXContainerItemProxy section */
-		AB2015E020284A6B005C7B98 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = AB2015C520284A6B005C7B98 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = AB2015CC20284A6B005C7B98;
-			remoteInfo = PacMan;
-		};
-		AB2015EB20284A6B005C7B98 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = AB2015C520284A6B005C7B98 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = AB2015CC20284A6B005C7B98;
-			remoteInfo = PacMan;
-		};
-/* End PBXContainerItemProxy section */
-
 /* Begin PBXFileReference section */
-		AB2015CD20284A6B005C7B98 /* PacMan.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PacMan.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		AB2015D020284A6B005C7B98 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		AB2015D220284A6B005C7B98 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
-		AB2015D420284A6B005C7B98 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		AB2015D720284A6B005C7B98 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
-		AB2015D920284A6B005C7B98 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		AB2015DA20284A6B005C7B98 /* PacMan.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PacMan.entitlements; sourceTree = "<group>"; };
-		AB2015DF20284A6B005C7B98 /* PacManTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PacManTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		AB2015E320284A6B005C7B98 /* PacManTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacManTests.swift; sourceTree = "<group>"; };
-		AB2015E520284A6B005C7B98 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		AB2015EA20284A6B005C7B98 /* PacManUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PacManUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		AB2015EE20284A6B005C7B98 /* PacManUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacManUITests.swift; sourceTree = "<group>"; };
-		AB2015F020284A6B005C7B98 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		AB2015FC20284B73005C7B98 /* MyOpenGLView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyOpenGLView.swift; sourceTree = "<group>"; };
-		AB20160220285213005C7B98 /* build-rust.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "build-rust.sh"; sourceTree = "<group>"; };
-		AB2016112028638E005C7B98 /* PacMan-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "PacMan-Bridging-Header.h"; sourceTree = "<group>"; };
-		AB201612202866AA005C7B98 /* libresolv.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libresolv.tbd; path = usr/lib/libresolv.tbd; sourceTree = SDKROOT; };
+		AB8401D6202AA63E00301449 /* PacMan.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PacMan.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AB8401D9202AA63E00301449 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
+		AB8401DA202AA63E00301449 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
+		AB8401DC202AA63E00301449 /* ViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ViewController.h; sourceTree = "<group>"; };
+		AB8401DD202AA63E00301449 /* ViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ViewController.m; sourceTree = "<group>"; };
+		AB8401DF202AA63E00301449 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		AB8401E2202AA63E00301449 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		AB8401E4202AA63E00301449 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		AB8401E5202AA63E00301449 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		AB8401E7202AA63E00301449 /* PacMan.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PacMan.entitlements; sourceTree = "<group>"; };
+		AB8401ED202AA81D00301449 /* BuildRustLib.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = BuildRustLib.sh; sourceTree = "<group>"; };
+		AB8401EF202AA8F300301449 /* OpenGLView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OpenGLView.h; sourceTree = "<group>"; };
+		AB8401F0202AA8F300301449 /* OpenGLView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = OpenGLView.m; sourceTree = "<group>"; };
+		AB8401F3202AAC0C00301449 /* libresolv.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libresolv.tbd; path = usr/lib/libresolv.tbd; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		AB2015CA20284A6B005C7B98 /* Frameworks */ = {
+		AB8401D3202AA63E00301449 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				AB201613202866AA005C7B98 /* libresolv.tbd in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		AB2015DC20284A6B005C7B98 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		AB2015E720284A6B005C7B98 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
+				AB8401F4202AAC0C00301449 /* libresolv.tbd in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		AB2015C420284A6B005C7B98 = {
+		AB8401CD202AA63E00301449 = {
 			isa = PBXGroup;
 			children = (
-				AB20160220285213005C7B98 /* build-rust.sh */,
-				AB2015CF20284A6B005C7B98 /* PacMan */,
-				AB2015E220284A6B005C7B98 /* PacManTests */,
-				AB2015ED20284A6B005C7B98 /* PacManUITests */,
-				AB2015CE20284A6B005C7B98 /* Products */,
-				AB20160B20285EF5005C7B98 /* Frameworks */,
+				AB8401D8202AA63E00301449 /* PacMan */,
+				AB8401D7202AA63E00301449 /* Products */,
+				AB8401F2202AAC0C00301449 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
-		AB2015CE20284A6B005C7B98 /* Products */ = {
+		AB8401D7202AA63E00301449 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				AB2015CD20284A6B005C7B98 /* PacMan.app */,
-				AB2015DF20284A6B005C7B98 /* PacManTests.xctest */,
-				AB2015EA20284A6B005C7B98 /* PacManUITests.xctest */,
+				AB8401D6202AA63E00301449 /* PacMan.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		AB2015CF20284A6B005C7B98 /* PacMan */ = {
+		AB8401D8202AA63E00301449 /* PacMan */ = {
 			isa = PBXGroup;
 			children = (
-				AB2015D020284A6B005C7B98 /* AppDelegate.swift */,
-				AB2015D220284A6B005C7B98 /* ViewController.swift */,
-				AB2015FC20284B73005C7B98 /* MyOpenGLView.swift */,
-				AB2015D420284A6B005C7B98 /* Assets.xcassets */,
-				AB2015D620284A6B005C7B98 /* Main.storyboard */,
-				AB2015D920284A6B005C7B98 /* Info.plist */,
-				AB2015DA20284A6B005C7B98 /* PacMan.entitlements */,
-				AB2016112028638E005C7B98 /* PacMan-Bridging-Header.h */,
+				AB8401D9202AA63E00301449 /* AppDelegate.h */,
+				AB8401DA202AA63E00301449 /* AppDelegate.m */,
+				AB8401DC202AA63E00301449 /* ViewController.h */,
+				AB8401DD202AA63E00301449 /* ViewController.m */,
+				AB8401EF202AA8F300301449 /* OpenGLView.h */,
+				AB8401F0202AA8F300301449 /* OpenGLView.m */,
+				AB8401DF202AA63E00301449 /* Assets.xcassets */,
+				AB8401E1202AA63E00301449 /* Main.storyboard */,
+				AB8401E4202AA63E00301449 /* Info.plist */,
+				AB8401E5202AA63E00301449 /* main.m */,
+				AB8401E7202AA63E00301449 /* PacMan.entitlements */,
+				AB8401ED202AA81D00301449 /* BuildRustLib.sh */,
 			);
 			path = PacMan;
 			sourceTree = "<group>";
 		};
-		AB2015E220284A6B005C7B98 /* PacManTests */ = {
+		AB8401F2202AAC0C00301449 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				AB2015E320284A6B005C7B98 /* PacManTests.swift */,
-				AB2015E520284A6B005C7B98 /* Info.plist */,
-			);
-			path = PacManTests;
-			sourceTree = "<group>";
-		};
-		AB2015ED20284A6B005C7B98 /* PacManUITests */ = {
-			isa = PBXGroup;
-			children = (
-				AB2015EE20284A6B005C7B98 /* PacManUITests.swift */,
-				AB2015F020284A6B005C7B98 /* Info.plist */,
-			);
-			path = PacManUITests;
-			sourceTree = "<group>";
-		};
-		AB20160B20285EF5005C7B98 /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				AB201612202866AA005C7B98 /* libresolv.tbd */,
+				AB8401F3202AAC0C00301449 /* libresolv.tbd */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -146,14 +92,14 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		AB2015CC20284A6B005C7B98 /* PacMan */ = {
+		AB8401D5202AA63E00301449 /* PacMan */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = AB2015F320284A6B005C7B98 /* Build configuration list for PBXNativeTarget "PacMan" */;
+			buildConfigurationList = AB8401EA202AA63E00301449 /* Build configuration list for PBXNativeTarget "PacMan" */;
 			buildPhases = (
-				AB20160E20285F58005C7B98 /* Build Rust */,
-				AB2015C920284A6B005C7B98 /* Sources */,
-				AB2015CA20284A6B005C7B98 /* Frameworks */,
-				AB2015CB20284A6B005C7B98 /* Resources */,
+				AB8401EE202AA83500301449 /* Build Rust Lib */,
+				AB8401D2202AA63E00301449 /* Sources */,
+				AB8401D3202AA63E00301449 /* Frameworks */,
+				AB8401D4202AA63E00301449 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -161,72 +107,25 @@
 			);
 			name = PacMan;
 			productName = PacMan;
-			productReference = AB2015CD20284A6B005C7B98 /* PacMan.app */;
+			productReference = AB8401D6202AA63E00301449 /* PacMan.app */;
 			productType = "com.apple.product-type.application";
-		};
-		AB2015DE20284A6B005C7B98 /* PacManTests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = AB2015F620284A6B005C7B98 /* Build configuration list for PBXNativeTarget "PacManTests" */;
-			buildPhases = (
-				AB2015DB20284A6B005C7B98 /* Sources */,
-				AB2015DC20284A6B005C7B98 /* Frameworks */,
-				AB2015DD20284A6B005C7B98 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				AB2015E120284A6B005C7B98 /* PBXTargetDependency */,
-			);
-			name = PacManTests;
-			productName = PacManTests;
-			productReference = AB2015DF20284A6B005C7B98 /* PacManTests.xctest */;
-			productType = "com.apple.product-type.bundle.unit-test";
-		};
-		AB2015E920284A6B005C7B98 /* PacManUITests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = AB2015F920284A6B005C7B98 /* Build configuration list for PBXNativeTarget "PacManUITests" */;
-			buildPhases = (
-				AB2015E620284A6B005C7B98 /* Sources */,
-				AB2015E720284A6B005C7B98 /* Frameworks */,
-				AB2015E820284A6B005C7B98 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				AB2015EC20284A6B005C7B98 /* PBXTargetDependency */,
-			);
-			name = PacManUITests;
-			productName = PacManUITests;
-			productReference = AB2015EA20284A6B005C7B98 /* PacManUITests.xctest */;
-			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		AB2015C520284A6B005C7B98 /* Project object */ = {
+		AB8401CE202AA63E00301449 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastSwiftUpdateCheck = 0920;
 				LastUpgradeCheck = 0920;
 				ORGANIZATIONNAME = "Coeuvre Wong";
 				TargetAttributes = {
-					AB2015CC20284A6B005C7B98 = {
+					AB8401D5202AA63E00301449 = {
 						CreatedOnToolsVersion = 9.2;
 						ProvisioningStyle = Automatic;
-					};
-					AB2015DE20284A6B005C7B98 = {
-						CreatedOnToolsVersion = 9.2;
-						ProvisioningStyle = Automatic;
-						TestTargetID = AB2015CC20284A6B005C7B98;
-					};
-					AB2015E920284A6B005C7B98 = {
-						CreatedOnToolsVersion = 9.2;
-						ProvisioningStyle = Automatic;
-						TestTargetID = AB2015CC20284A6B005C7B98;
 					};
 				};
 			};
-			buildConfigurationList = AB2015C820284A6B005C7B98 /* Build configuration list for PBXProject "PacMan" */;
+			buildConfigurationList = AB8401D1202AA63E00301449 /* Build configuration list for PBXProject "PacMan" */;
 			compatibilityVersion = "Xcode 8.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -234,108 +133,64 @@
 				en,
 				Base,
 			);
-			mainGroup = AB2015C420284A6B005C7B98;
-			productRefGroup = AB2015CE20284A6B005C7B98 /* Products */;
+			mainGroup = AB8401CD202AA63E00301449;
+			productRefGroup = AB8401D7202AA63E00301449 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				AB2015CC20284A6B005C7B98 /* PacMan */,
-				AB2015DE20284A6B005C7B98 /* PacManTests */,
-				AB2015E920284A6B005C7B98 /* PacManUITests */,
+				AB8401D5202AA63E00301449 /* PacMan */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		AB2015CB20284A6B005C7B98 /* Resources */ = {
+		AB8401D4202AA63E00301449 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				AB2015D520284A6B005C7B98 /* Assets.xcassets in Resources */,
-				AB2015D820284A6B005C7B98 /* Main.storyboard in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		AB2015DD20284A6B005C7B98 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		AB2015E820284A6B005C7B98 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
+				AB8401E0202AA63E00301449 /* Assets.xcassets in Resources */,
+				AB8401E3202AA63E00301449 /* Main.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		AB20160E20285F58005C7B98 /* Build Rust */ = {
+		AB8401EE202AA83500301449 /* Build Rust Lib */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputPaths = (
 			);
-			name = "Build Rust";
+			name = "Build Rust Lib";
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "${SRCROOT}/build-rust.sh";
+			shellScript = "${SRCROOT}/PacMan/BuildRustLib.sh";
 		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		AB2015C920284A6B005C7B98 /* Sources */ = {
+		AB8401D2202AA63E00301449 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				AB2015D320284A6B005C7B98 /* ViewController.swift in Sources */,
-				AB2015D120284A6B005C7B98 /* AppDelegate.swift in Sources */,
-				AB2015FD20284B73005C7B98 /* MyOpenGLView.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		AB2015DB20284A6B005C7B98 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				AB2015E420284A6B005C7B98 /* PacManTests.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		AB2015E620284A6B005C7B98 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				AB2015EF20284A6B005C7B98 /* PacManUITests.swift in Sources */,
+				AB8401DE202AA63E00301449 /* ViewController.m in Sources */,
+				AB8401E6202AA63E00301449 /* main.m in Sources */,
+				AB8401DB202AA63E00301449 /* AppDelegate.m in Sources */,
+				AB8401F1202AA8F300301449 /* OpenGLView.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
-/* Begin PBXTargetDependency section */
-		AB2015E120284A6B005C7B98 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = AB2015CC20284A6B005C7B98 /* PacMan */;
-			targetProxy = AB2015E020284A6B005C7B98 /* PBXContainerItemProxy */;
-		};
-		AB2015EC20284A6B005C7B98 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = AB2015CC20284A6B005C7B98 /* PacMan */;
-			targetProxy = AB2015EB20284A6B005C7B98 /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
-
 /* Begin PBXVariantGroup section */
-		AB2015D620284A6B005C7B98 /* Main.storyboard */ = {
+		AB8401E1202AA63E00301449 /* Main.storyboard */ = {
 			isa = PBXVariantGroup;
 			children = (
-				AB2015D720284A6B005C7B98 /* Base */,
+				AB8401E2202AA63E00301449 /* Base */,
 			);
 			name = Main.storyboard;
 			sourceTree = "<group>";
@@ -343,7 +198,7 @@
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
-		AB2015F120284A6B005C7B98 /* Debug */ = {
+		AB8401E8202AA63E00301449 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -395,12 +250,10 @@
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
 			name = Debug;
 		};
-		AB2015F220284A6B005C7B98 /* Release */ = {
+		AB8401E9202AA63E00301449 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -445,150 +298,65 @@
 				MACOSX_DEPLOYMENT_TARGET = 10.12;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = macosx;
-				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
 			};
 			name = Release;
 		};
-		AB2015F420284A6B005C7B98 /* Debug */ = {
+		AB8401EB202AA63E00301449 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = PacMan/PacMan.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/../rust";
 				INFOPLIST_FILE = PacMan/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../rust/target/debug";
 				OTHER_LDFLAGS = "-lpacman";
 				PRODUCT_BUNDLE_IDENTIFIER = me.coeuvre.PacMan;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/../rust";
-				SWIFT_OBJC_BRIDGING_HEADER = "PacMan/PacMan-Bridging-Header.h";
-				SWIFT_VERSION = 4.0;
 			};
 			name = Debug;
 		};
-		AB2015F520284A6B005C7B98 /* Release */ = {
+		AB8401EC202AA63E00301449 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = PacMan/PacMan.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/../rust";
 				INFOPLIST_FILE = PacMan/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../rust/target/release";
 				OTHER_LDFLAGS = "-lpacman";
 				PRODUCT_BUNDLE_IDENTIFIER = me.coeuvre.PacMan;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/../rust";
-				SWIFT_OBJC_BRIDGING_HEADER = "PacMan/PacMan-Bridging-Header.h";
-				SWIFT_VERSION = 4.0;
-			};
-			name = Release;
-		};
-		AB2015F720284A6B005C7B98 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				COMBINE_HIDPI_IMAGES = YES;
-				INFOPLIST_FILE = PacManTests/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = me.coeuvre.PacManTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_VERSION = 4.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PacMan.app/Contents/MacOS/PacMan";
-			};
-			name = Debug;
-		};
-		AB2015F820284A6B005C7B98 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				COMBINE_HIDPI_IMAGES = YES;
-				INFOPLIST_FILE = PacManTests/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = me.coeuvre.PacManTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_VERSION = 4.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PacMan.app/Contents/MacOS/PacMan";
-			};
-			name = Release;
-		};
-		AB2015FA20284A6B005C7B98 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
-				CODE_SIGN_STYLE = Automatic;
-				COMBINE_HIDPI_IMAGES = YES;
-				INFOPLIST_FILE = PacManUITests/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = me.coeuvre.PacManUITests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_VERSION = 4.0;
-				TEST_TARGET_NAME = PacMan;
-			};
-			name = Debug;
-		};
-		AB2015FB20284A6B005C7B98 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
-				CODE_SIGN_STYLE = Automatic;
-				COMBINE_HIDPI_IMAGES = YES;
-				INFOPLIST_FILE = PacManUITests/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = me.coeuvre.PacManUITests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_VERSION = 4.0;
-				TEST_TARGET_NAME = PacMan;
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		AB2015C820284A6B005C7B98 /* Build configuration list for PBXProject "PacMan" */ = {
+		AB8401D1202AA63E00301449 /* Build configuration list for PBXProject "PacMan" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				AB2015F120284A6B005C7B98 /* Debug */,
-				AB2015F220284A6B005C7B98 /* Release */,
+				AB8401E8202AA63E00301449 /* Debug */,
+				AB8401E9202AA63E00301449 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		AB2015F320284A6B005C7B98 /* Build configuration list for PBXNativeTarget "PacMan" */ = {
+		AB8401EA202AA63E00301449 /* Build configuration list for PBXNativeTarget "PacMan" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				AB2015F420284A6B005C7B98 /* Debug */,
-				AB2015F520284A6B005C7B98 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		AB2015F620284A6B005C7B98 /* Build configuration list for PBXNativeTarget "PacManTests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				AB2015F720284A6B005C7B98 /* Debug */,
-				AB2015F820284A6B005C7B98 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		AB2015F920284A6B005C7B98 /* Build configuration list for PBXNativeTarget "PacManUITests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				AB2015FA20284A6B005C7B98 /* Debug */,
-				AB2015FB20284A6B005C7B98 /* Release */,
+				AB8401EB202AA63E00301449 /* Debug */,
+				AB8401EC202AA63E00301449 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = AB2015C520284A6B005C7B98 /* Project object */;
+	rootObject = AB8401CE202AA63E00301449 /* Project object */;
 }
