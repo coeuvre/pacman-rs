@@ -706,10 +706,10 @@
         <scene sceneID="hIz-AP-VOD">
             <objects>
                 <viewController id="XfG-lQ-9wD" customClass="ViewController" sceneMemberID="viewController">
-                    <view key="view" wantsLayer="YES" id="m2S-Jp-Qdl" customClass="OpenGLView">
-                        <rect key="frame" x="0.0" y="0.0" width="480" height="270"/>
-                        <autoresizingMask key="autoresizingMask"/>
-                    </view>
+                    <openGLView key="view" colorSize="5bit_RGB_8bit_Alpha" depthSize="24bit" rendererType="accelerated" useAuxiliaryDepthBufferStencil="NO" useDoubleBufferingEnabled="YES" allowOffline="YES" wantsBestResolutionOpenGLSurface="YES" id="LjA-Y8-SUr" customClass="OpenGLView">
+                        <rect key="frame" x="0.0" y="0.0" width="450" height="300"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                    </openGLView>
                 </viewController>
                 <customObject id="rPt-NT-nkU" userLabel="First Responder" customClass="NSResponder" sceneMemberID="firstResponder"/>
             </objects>

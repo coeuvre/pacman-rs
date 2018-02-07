@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-extern void pacman_init(int (*add)(int, int));
+extern void pacman_init(void *(*add)(const char *));
 
 extern void pacman_update(void);
 

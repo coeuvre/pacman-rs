@@ -1,7 +1,7 @@
 #!/bin/sh
 
-export PATH="$PATH:${HOME}/.cargo/bin"
+export PATH=$PATH:$HOME/.cargo/bin
 
-cd "${SRCROOT}/../rust"
+cd ${SRCROOT}/../rust
 
 cargo build
