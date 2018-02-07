@@ -2,11 +2,11 @@
 
 #import "pacman.h"
 
-static CFBundleRef openglBundleRef;
+static CFBundleRef OPENGL_BUNDLE_REF = nil;
 
 void *getGLProcAddress(const char *name) {
     CFStringRef symbolName = CFStringCreateWithCString(kCFAllocatorDefault, name, kCFStringEncodingASCII);
-    void *symbol = CFBundleGetFunctionPointerForName(openglBundleRef, symbolName);
+    void *symbol = CFBundleGetFunctionPointerForName(OPENGL_BUNDLE_REF, symbolName);
     CFRelease(symbolName);
     return symbol;
 }
@@ -15,10 +15,36 @@ void *getGLProcAddress(const char *name) {
     CVDisplayLinkRef displayLink; //display link for managing rendering thread
 }
 
+- (instancetype)initWithCoder:(NSCoder *)decoder {
+    self = [super initWithCoder:decoder];
+    
+    if (OPENGL_BUNDLE_REF == nil) {
+        OPENGL_BUNDLE_REF = CFBundleGetBundleWithIdentifier(CFSTR("com.apple.opengl"));
+    }
+
+    NSOpenGLPixelFormatAttribute attributes[] = {
+        NSOpenGLPFAAccelerated,
+        NSOpenGLPFAColorSize, 32,
+        NSOpenGLPFADoubleBuffer,
+        NSOpenGLPFAOpenGLProfile, NSOpenGLProfileVersion3_2Core,
+        0
+    };
+    
+    NSOpenGLPixelFormat *pixelFormat = [[NSOpenGLPixelFormat alloc] initWithAttributes:attributes];
+    if (pixelFormat == nil) {
+        panic("Failed to init pixelFormat");
+    }
+    
+    [self setPixelFormat:pixelFormat];
+    
+    NSOpenGLContext *openGLContext = [[NSOpenGLContext alloc] initWithFormat:pixelFormat shareContext:nil];
+    [self setOpenGLContext:openGLContext];
+    
+    return self;
+}
+
 - (void)prepareOpenGL {
     [super prepareOpenGL];
-    
-    openglBundleRef = CFBundleGetBundleWithIdentifier(CFSTR("com.apple.opengl"));
     
     // Synchronize buffer swaps with vertical refresh rate
     GLint swapInt = 1;
@@ -47,12 +73,6 @@ void *getGLProcAddress(const char *name) {
     CVDisplayLinkRelease(displayLink);
 }
 
-- (void)drawRect:(NSRect)dirtyRect {
-    [super drawRect:dirtyRect];
-
-    [self renderFrame];
-}
-
 - (void)renderFrame {
     [[self openGLContext] makeCurrentContext];
     
@@ -60,17 +80,13 @@ void *getGLProcAddress(const char *name) {
     
     pacman_render();
     
-//    void (*glClearColor)(float, float, float, float) = getGLProcAddress("glClearColor");
-//    glClearColor(1.0, 0.0, 0.0, 0.0);
-//    glClear(GL_COLOR_BUFFER_BIT);
-//    glFlush();
-    
     CGLFlushDrawable([[self openGLContext] CGLContextObj]);
     CGLUnlockContext([[self openGLContext] CGLContextObj]);
 }
 
 - (CVReturn)getFrameForTime:(const CVTimeStamp*)outputTime {
-        //    pacman_update();
+    pacman_update();
+
     [self renderFrame];
     
     return kCVReturnSuccess;

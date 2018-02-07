@@ -96,10 +96,10 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = AB840214202AD87200301449 /* Build configuration list for PBXNativeTarget "PacMan" */;
 			buildPhases = (
+				AB35CC23202AEDAE004D87DE /* Build Rust Lib */,
 				AB8401FC202AD87200301449 /* Sources */,
 				AB8401FD202AD87200301449 /* Frameworks */,
 				AB8401FE202AD87200301449 /* Resources */,
-				AB35CC23202AEDAE004D87DE /* Build Rust Lib */,
 			);
 			buildRules = (
 			);
