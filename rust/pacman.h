@@ -5,16 +5,17 @@
 extern "C" {
 #endif
 
-typedef void PacManMakeGLContextCurrent(void *context);
-typedef void *PacManGetGLProcAddress(char *name);
+typedef struct Platform {
+    void *(*get_gl_proc_address)(const char *name);
+} Platform;
 
-extern void pacman_init(PacManGetGLProcAddress *);
+typedef struct PacManLib {
+    void (*on_platform_event)(int event_id, void *data);
+    void (*update)(void);
+    void (*render)(void);
+} PacManLib;
 
-extern void pacman_update(void);
-
-extern void pacman_render(void);
-
-extern void pacman_start(void *context, PacManMakeGLContextCurrent *, PacManMakeGLContextCurrent *);
+extern PacManLib *pacman_init(Platform *);
 
 #ifdef __cplusplus
 }

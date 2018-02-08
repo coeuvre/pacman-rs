@@ -4,6 +4,9 @@
 
 static CFBundleRef OPENGL_BUNDLE_REF = nil;
 
+Platform platform;
+PacManLib *lib;
+
 void *getGLProcAddress(const char *name) {
     CFStringRef symbolName = CFStringCreateWithCString(kCFAllocatorDefault, name, kCFStringEncodingASCII);
     void *symbol = CFBundleGetFunctionPointerForName(OPENGL_BUNDLE_REF, symbolName);
@@ -50,8 +53,6 @@ void *getGLProcAddress(const char *name) {
     GLint swapInt = 1;
     [[self openGLContext] setValues:&swapInt forParameter:NSOpenGLCPSwapInterval];
 
-    pacman_init(&getGLProcAddress);
-
     // Create a display link capable of being used with all active displays
     CVDisplayLinkCreateWithActiveCGDisplays(&displayLink);
 
@@ -74,22 +75,36 @@ void *getGLProcAddress(const char *name) {
 }
 
 - (void)renderFrame {
-    [[self openGLContext] makeCurrentContext];
-    
     CGLLockContext([[self openGLContext] CGLContextObj]);
     
-    pacman_render();
+    if (lib != nil) {
+        lib->render();
+    }
     
     CGLFlushDrawable([[self openGLContext] CGLContextObj]);
     CGLUnlockContext([[self openGLContext] CGLContextObj]);
 }
 
 - (CVReturn)getFrameForTime:(const CVTimeStamp*)outputTime {
-    pacman_update();
-
+    [[self openGLContext] makeCurrentContext];
+    
+    if (lib == nil) {
+        platform.get_gl_proc_address = &getGLProcAddress;
+        lib = pacman_init(&platform);
+        assert(lib != nil);
+    }
+    
+    lib->update();
+    
     [self renderFrame];
     
     return kCVReturnSuccess;
+}
+
+- (void)reshape {
+    if (lib != nil) {
+        lib->on_platform_event(0, 0);
+    }
 }
 
 // This is the renderer output callback function
