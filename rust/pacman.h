@@ -6,8 +6,13 @@ extern "C" {
 #endif
 
 typedef struct Platform {
+    void (*quit)(void);
     void *(*get_gl_proc_address)(const char *name);
 } Platform;
+
+enum PlatformEventId {
+    PLATFORM_EVENT_CLOSE,
+};
 
 typedef struct PacManLib {
     void (*on_platform_event)(Platform *, int event_id, void *data);

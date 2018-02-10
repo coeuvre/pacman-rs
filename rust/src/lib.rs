@@ -13,9 +13,7 @@ lazy_static! {
     static ref STATE_LOCK: RwLock<State> = RwLock::new(State::new());
 }
 
-enum PlatformEvent {
-    Count
-}
+const PLATFORM_EVENT_CLOSE: c_int = 0;
 
 struct State {
     count: i32
@@ -31,6 +29,7 @@ impl State {
 
 #[repr(C)]
 pub struct Platform {
+    pub quit: unsafe extern "C" fn(),
     pub get_gl_proc_address: unsafe extern "C" fn(*const c_char) -> *const c_void,
 }
 
@@ -78,14 +77,16 @@ unsafe extern "C" fn render(platform: *mut Platform) {
 
     let state = STATE_LOCK.read().unwrap();
 
-    //gl::ClearColor((state.count as f32 / 255.0).min(1.0), 0.0, 0.0, 1.0);
-    gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+    gl::ClearColor((state.count as f32 / 255.0).min(1.0), 0.0, 0.0, 1.0);
+    // gl::ClearColor(0.0, 0.0, 0.0, 1.0);
     gl::Clear(gl::COLOR_BUFFER_BIT);
 
     println!("{}", state.count);
 }
 
-unsafe extern "C" fn on_platform_event(_platform: *mut Platform, _event_id: c_int, _data: *const c_void) {
-    let mut state = STATE_LOCK.write().unwrap();
-    state.count = state.count + 1;
+unsafe extern "C" fn on_platform_event(platform: *mut Platform, event_id: c_int, _data: *const c_void) {
+    match event_id {
+        PLATFORM_EVENT_CLOSE => ((*platform).quit)(),
+        _ => {}
+    }
 }
