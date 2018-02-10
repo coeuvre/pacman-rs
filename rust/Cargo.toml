@@ -9,5 +9,6 @@ crate-type = ["staticlib"]
 [dependencies]
 gl = { path = "gl" }
 platform = { path = "platform" }
+lazy_static = "1.0"
 
 [workspace]

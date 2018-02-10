@@ -1,21 +1,32 @@
 extern crate gl;
+#[macro_use]
+extern crate lazy_static;
 
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::ffi::{CStr, CString};
 use std::os::raw::*;
+use std::sync::{Once, ONCE_INIT, RwLock};
 
-static mut PLATFORM: *mut Platform = 0 as *mut Platform;
 static mut LIB: *mut PacManLib = 0 as *mut PacManLib;
-static mut STATE: *mut State = 0 as *mut State;
+
+lazy_static! {
+    static ref STATE_LOCK: RwLock<State> = RwLock::new(State::new());
+}
 
 enum PlatformEvent {
     Count
 }
 
 struct State {
-    platform_event_sender: Sender<PlatformEvent>,
-    platform_event_receiver: Receiver<PlatformEvent>,
     count: i32
+}
+
+impl State {
+    pub fn new() -> State {
+        State {
+            count: 0,
+        }
+    }
 }
 
 #[repr(C)]
@@ -25,33 +36,16 @@ pub struct Platform {
 
 #[repr(C)]
 pub struct PacManLib {
-    pub on_platform_event: unsafe extern "C" fn(c_int, *const c_void),
-    pub update: unsafe extern "C" fn(),
-    pub render: unsafe extern "C" fn(),
+    pub on_platform_event: unsafe extern "C" fn(*mut Platform, c_int, *const c_void),
+    pub update: unsafe extern "C" fn(*mut Platform),
+    pub render: unsafe extern "C" fn(*mut Platform),
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn pacman_init(platform: *mut Platform) -> *mut PacManLib {
-    PLATFORM = platform;
-
+pub unsafe extern "C" fn pacman_load(platform: *mut Platform) -> *mut PacManLib {
     println!("init at rust side");
-    gl::load_with(|s| {
-        let cstring = CString::new(s).unwrap();
-        ((*PLATFORM).get_gl_proc_address)(cstring.as_ptr())
-    });
 
-    // println!("{}", add(1, 2));
-    // // ::std::thread::sleep_ms(1000);
-    let glversion = CStr::from_ptr(gl::GetString(gl::VERSION) as *const ::std::os::raw::c_char);
-    println!("OpenGL Version {}", glversion.to_str().unwrap());
-
-    let (sender, receiver) = channel();
-    let state = Box::new(State {
-        count: 0,
-        platform_event_sender: sender,
-        platform_event_receiver: receiver,
-    });
-    STATE = Box::into_raw(state);
+    lazy_static::initialize(&STATE_LOCK);
 
     LIB = Box::into_raw(Box::new(PacManLib  {
         on_platform_event,
@@ -62,23 +56,36 @@ pub unsafe extern "C" fn pacman_init(platform: *mut Platform) -> *mut PacManLib 
     LIB
 }
 
-unsafe extern "C" fn update() {
-    while let Ok(platform_event) = (*STATE).platform_event_receiver.try_recv() {
-        match platform_event {
-            PlatformEvent::Count => (*STATE).count += 1,
-        }
-    }
+unsafe extern "C" fn update(platform: *mut Platform) {
+    let mut state = STATE_LOCK.write().unwrap();
+
+    state.count = state.count + 1;
 }
 
-unsafe extern "C" fn render() {
-    let state = &*STATE;
+static INIT_RENDER: Once = ONCE_INIT;
 
-    gl::ClearColor((state.count as f32 / 255.0).min(1.0), 0.0, 0.0, 1.0);
+unsafe extern "C" fn render(platform: *mut Platform) {
+    INIT_RENDER.call_once(|| {
+        gl::load_with(|s| {
+            let cstring = CString::new(s).unwrap();
+            ((*platform).get_gl_proc_address)(cstring.as_ptr())
+        });
+
+        let glversion = CStr::from_ptr(gl::GetString(gl::VERSION) as *const ::std::os::raw::c_char);
+        println!("OpenGL Version {}", glversion.to_str().unwrap());
+
+    });
+
+    let state = STATE_LOCK.read().unwrap();
+
+    //gl::ClearColor((state.count as f32 / 255.0).min(1.0), 0.0, 0.0, 1.0);
+    gl::ClearColor(0.0, 0.0, 0.0, 1.0);
     gl::Clear(gl::COLOR_BUFFER_BIT);
 
     println!("{}", state.count);
 }
 
-unsafe extern "C" fn on_platform_event(_event_id: c_int, _data: *const c_void) {
-    (*STATE).platform_event_sender.send(PlatformEvent::Count).unwrap();
+unsafe extern "C" fn on_platform_event(_platform: *mut Platform, _event_id: c_int, _data: *const c_void) {
+    let mut state = STATE_LOCK.write().unwrap();
+    state.count = state.count + 1;
 }

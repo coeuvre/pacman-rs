@@ -1,4 +1,7 @@
 .vscode/
+.vs/
+Debug/
+Release/
 target/
 **/*.rs.bk
 xcuserdata/

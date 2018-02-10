@@ -10,12 +10,12 @@ typedef struct Platform {
 } Platform;
 
 typedef struct PacManLib {
-    void (*on_platform_event)(int event_id, void *data);
-    void (*update)(void);
-    void (*render)(void);
+    void (*on_platform_event)(Platform *, int event_id, void *data);
+    void (*update)(Platform *);
+    void (*render)(Platform *);
 } PacManLib;
 
-extern PacManLib *pacman_init(Platform *);
+extern PacManLib *pacman_load(Platform *);
 
 #ifdef __cplusplus
 }
