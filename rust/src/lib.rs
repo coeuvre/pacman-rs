@@ -8,10 +8,7 @@ use std::os::raw::*;
 use std::sync::{Once, ONCE_INIT, RwLock};
 
 static mut LIB: *mut PacManLib = 0 as *mut PacManLib;
-
-lazy_static! {
-    static ref STATE_LOCK: RwLock<State> = RwLock::new(State::new());
-}
+static mut STATE: *mut State = 0 as *mut State;
 
 const PLATFORM_EVENT_CLOSE: c_int = 0;
 
@@ -44,7 +41,7 @@ pub struct PacManLib {
 pub unsafe extern "C" fn pacman_load(platform: *mut Platform) -> *mut PacManLib {
     println!("init at rust side");
 
-    lazy_static::initialize(&STATE_LOCK);
+    STATE = Box::into_raw(Box::new(State::new()));
 
     LIB = Box::into_raw(Box::new(PacManLib  {
         on_platform_event,
@@ -56,7 +53,7 @@ pub unsafe extern "C" fn pacman_load(platform: *mut Platform) -> *mut PacManLib 
 }
 
 unsafe extern "C" fn update(platform: *mut Platform) {
-    let mut state = STATE_LOCK.write().unwrap();
+    let mut state = &mut *STATE;
 
     state.count = state.count + 1;
 }
@@ -75,7 +72,7 @@ unsafe extern "C" fn render(platform: *mut Platform) {
 
     });
 
-    let state = STATE_LOCK.read().unwrap();
+    let state = &*STATE;
 
     gl::ClearColor((state.count as f32 / 255.0).min(1.0), 0.0, 0.0, 1.0);
     // gl::ClearColor(0.0, 0.0, 0.0, 1.0);
