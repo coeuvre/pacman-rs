@@ -5,22 +5,22 @@
 extern "C" {
 #endif
 
-typedef struct Platform {
+typedef struct PlatformApi {
     void (*quit)(void);
     void *(*get_gl_proc_address)(const char *name);
-} Platform;
+} PlatformApi;
 
 enum PlatformEventId {
     PLATFORM_EVENT_CLOSE,
 };
 
-typedef struct PacManLib {
-    void (*on_platform_event)(Platform *, int event_id, void *data);
-    void (*update)(Platform *);
-    void (*render)(Platform *);
-} PacManLib;
+typedef struct LibApi {
+    void (*on_platform_event)(int event_id, void *data);
+    void (*update)(void);
+    void (*render)(void);
+} LibApi;
 
-extern PacManLib *pacman_load(Platform *);
+extern LibApi *pacman_load(PlatformApi *);
 
 #ifdef __cplusplus
 }
