@@ -5,17 +5,9 @@
 extern "C" {
 #endif
 
-enum PlatformLogLevel {
-    PLATFORM_LOG_LEVEL_ERROR = 1,
-    PLATFORM_LOG_LEVEL_WARN,
-    PLATFORM_LOG_LEVEL_INFO,
-    PLATFORM_LOG_LEVEL_DEBUG,
-    PLATFORM_LOG_LEVEL_TRACE,
-};
-
 typedef struct PlatformApi {
     void (*quit)(void);
-    void (*log)(int level, const char *message);
+    void (*log)(const char *message);
     void *(*get_gl_proc_address)(const char *name);
     float (*get_delta_time)(void);
 } PlatformApi;

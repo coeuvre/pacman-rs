@@ -1,13 +1,12 @@
+#[macro_use]
+extern crate log;
+extern crate time;
 extern crate gl;
+
+mod logger;
 
 use std::ffi::{CStr, CString};
 use std::os::raw::*;
-
-const PLATFORM_LOG_LEVEL_ERROR: c_int = 1;
-const PLATFORM_LOG_LEVEL_WARN: c_int = 2;
-const PLATFORM_LOG_LEVEL_INFO: c_int = 3;
-const PLATFORM_LOG_LEVEL_DEBUG: c_int = 4;
-const PLATFORM_LOG_LEVEL_TRACE: c_int = 5;
 
 const PLATFORM_EVENT_CLOSE: c_int = 0;
 
@@ -31,7 +30,7 @@ impl LibState {
 #[repr(C)]
 pub struct PlatformApi {
     pub quit: unsafe extern "C" fn(),
-    pub log: unsafe extern "C" fn(level: c_int, message: *const c_char),
+    pub log: unsafe extern "C" fn(message: *const c_char),
     pub get_gl_proc_address: unsafe extern "C" fn(*const c_char) -> *const c_void,
     pub get_delta_time: unsafe extern "C" fn() -> f32,
 }
@@ -43,18 +42,13 @@ pub struct LibApi {
     pub render: unsafe extern "C" fn(),
 }
 
-unsafe fn log<T: Into<Vec<u8>>>(level: c_int, message: T) {
-    let mut message = message.into();
-    message.push('\n' as u8);
-    let message = CString::new(message).unwrap();
-    ((*PLATFORM).log)(level, message.as_ptr());
-}
-
 #[no_mangle]
 pub unsafe extern "C" fn pacman_load(platform: *mut PlatformApi) -> *mut LibApi {
     PLATFORM = platform;
 
-    log(PLATFORM_LOG_LEVEL_INFO, "init at rust side");
+    logger::init().unwrap();
+
+    info!("init at rust side");
     
     gl::load_with(|s| {
         let cstring = CString::new(s).unwrap();
@@ -62,7 +56,7 @@ pub unsafe extern "C" fn pacman_load(platform: *mut PlatformApi) -> *mut LibApi 
     });
 
     let glversion = CStr::from_ptr(gl::GetString(gl::VERSION) as *const ::std::os::raw::c_char);
-    log(PLATFORM_LOG_LEVEL_INFO, format!("OpenGL Version {}", glversion.to_str().unwrap()));
+    info!("OpenGL Version {}", glversion.to_str().unwrap());
 
     LIB = Box::into_raw(Box::new(LibState::new(Box::into_raw(Box::new(LibApi {
         on_platform_event,
@@ -86,7 +80,7 @@ unsafe extern "C" fn render() {
     // gl::ClearColor(0.0, 0.0, 0.0, 1.0);
     gl::Clear(gl::COLOR_BUFFER_BIT);
 
-    println!("{}", state.count);
+    info!("{}", state.count);
 }
 
 unsafe extern "C" fn on_platform_event(event_id: c_int, _data: *const c_void) {
