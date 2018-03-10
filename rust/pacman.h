@@ -7,24 +7,19 @@ extern "C" {
 
 #include <stdint.h>
 
+enum PlatformEventId {
+    PLATFORM_EVENT_CLOSE,
+};;
+
 typedef struct PlatformApi {
-    void (*quit)(void);
     void (*log)(const char *message);
     void *(*get_gl_proc_address)(const char *name);
+    void (*swap_gl_buffer)(void);
     uint64_t (*get_performance_counter)(void);
     uint64_t(*get_performance_frequency)(void);
 } PlatformApi;
 
-enum PlatformEventId {
-    PLATFORM_EVENT_CLOSE,
-};
-
-typedef struct LibApi {
-    void (*on_platform_event)(int event_id, void *data);
-    void (*render)(void);
-} LibApi;
-
-extern LibApi *pacman_load(PlatformApi *);
+extern void pacman_start(PlatformApi *);
 
 #ifdef __cplusplus
 }
