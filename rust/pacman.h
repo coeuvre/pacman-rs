@@ -5,11 +5,14 @@
 extern "C" {
 #endif
 
+#include <stdint.h>
+
 typedef struct PlatformApi {
     void (*quit)(void);
     void (*log)(const char *message);
     void *(*get_gl_proc_address)(const char *name);
-    float (*get_delta_time)(void);
+    uint64_t (*get_performance_counter)(void);
+    uint64_t(*get_performance_frequency)(void);
 } PlatformApi;
 
 enum PlatformEventId {
