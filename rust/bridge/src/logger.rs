@@ -2,8 +2,6 @@ use std::ffi::CString;
 use time;
 use log::{self, Record, Level, Metadata, SetLoggerError};
 
-use super::PLATFORM;
-
 struct PlatformLogger;
 
 impl log::Log for PlatformLogger {
@@ -27,7 +25,7 @@ impl log::Log for PlatformLogger {
 
 fn log<T: Into<Vec<u8>>>(message: T) {
     let message = CString::new(message).unwrap();
-    unsafe { ((*PLATFORM).log)(message.as_ptr()) };
+    unsafe { ::log(message.as_ptr()) };
 }
 
 static LOGGER: PlatformLogger = PlatformLogger;

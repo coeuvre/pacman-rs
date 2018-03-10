@@ -8,9 +8,9 @@ crate-type = ["staticlib"]
 
 [dependencies]
 log = "0.4"
-time = "0.1"
 lazy_static = "1.0"
 
+bridge = { path = "bridge" }
 gl = { path = "gl" }
 
 [workspace]

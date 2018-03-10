@@ -1,12 +1,20 @@
-pub trait Game {
-    fn update(&mut self);
-    fn render(&self);
-}
+use gl;
 
-pub struct GameState {
+pub struct Game {}
 
-}
+impl Game {
+    pub fn new() -> Game {
+        Game {}
+    }
 
-impl Game for GameState {
+    pub fn update(&mut self, _dt: f32) {
 
+    }
+
+    pub fn render(&self) {
+        unsafe {
+            gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
+        }
+    }
 }

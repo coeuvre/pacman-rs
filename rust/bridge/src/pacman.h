@@ -15,7 +15,7 @@ typedef struct PlatformEvent {
     int kind;
 } PlatformEvent;
 
-typedef struct PlatformApi {
+typedef struct Platform {
     int (*poll_event)(PlatformEvent *event);
 
     void (*log)(const char *message);
@@ -24,10 +24,10 @@ typedef struct PlatformApi {
     void (*swap_gl_buffer)(void);
 
     uint64_t (*get_performance_counter)(void);
-    uint64_t(*get_performance_frequency)(void);
-} PlatformApi;
+    uint64_t (*get_performance_frequency)(void);
+} Platform;
 
-extern void pacman_start(PlatformApi *);
+extern void game_main(Platform *);
 
 #ifdef __cplusplus
 }
