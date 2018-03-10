@@ -7,14 +7,22 @@ extern "C" {
 
 #include <stdint.h>
 
-enum PlatformEventId {
-    PLATFORM_EVENT_CLOSE,
-};;
+enum PlatformEventKind {
+    PLATFORM_EVENT_CLOSE = 1,
+};
+
+typedef struct PlatformEvent {
+    int kind;
+} PlatformEvent;
 
 typedef struct PlatformApi {
+    int (*poll_event)(PlatformEvent *event);
+
     void (*log)(const char *message);
+
     void *(*get_gl_proc_address)(const char *name);
     void (*swap_gl_buffer)(void);
+
     uint64_t (*get_performance_counter)(void);
     uint64_t(*get_performance_frequency)(void);
 } PlatformApi;

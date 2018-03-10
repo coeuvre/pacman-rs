@@ -6,3 +6,7 @@ pub trait Game {
 pub struct GameState {
 
 }
+
+impl Game for GameState {
+
+}
