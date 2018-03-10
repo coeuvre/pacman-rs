@@ -14,12 +14,12 @@ static mut PLATFORM: *mut PlatformApi = 0 as *mut PlatformApi;
 static mut LIB: *mut LibState = 0 as *mut LibState;
 
 struct LibState {
-    api: *mut LibApi,
+    api: LibApi,
     count: f32
 }
 
 impl LibState {
-    pub fn new(api: *mut LibApi) -> LibState {
+    pub fn new(api: LibApi) -> LibState {
         LibState {
             api,
             count: 0.0,
@@ -38,7 +38,6 @@ pub struct PlatformApi {
 #[repr(C)]
 pub struct LibApi {
     pub on_platform_event: unsafe extern "C" fn(c_int, *const c_void),
-    pub update: unsafe extern "C" fn(),
     pub render: unsafe extern "C" fn(),
 }
 
@@ -49,7 +48,7 @@ pub unsafe extern "C" fn pacman_load(platform: *mut PlatformApi) -> *mut LibApi 
     logger::init().unwrap();
 
     info!("init at rust side");
-    
+
     gl::load_with(|s| {
         let cstring = CString::new(s).unwrap();
         ((*platform).get_gl_proc_address)(cstring.as_ptr())
@@ -58,23 +57,18 @@ pub unsafe extern "C" fn pacman_load(platform: *mut PlatformApi) -> *mut LibApi 
     let glversion = CStr::from_ptr(gl::GetString(gl::VERSION) as *const ::std::os::raw::c_char);
     info!("OpenGL Version {}", glversion.to_str().unwrap());
 
-    LIB = Box::into_raw(Box::new(LibState::new(Box::into_raw(Box::new(LibApi {
+    LIB = Box::into_raw(Box::new(LibState::new(LibApi {
         on_platform_event,
-        update,
         render,
-    })))));
+    })));
 
-    (*LIB).api
-}
-
-unsafe extern "C" fn update() {
-    let state = &mut *LIB;
-
-    state.count = state.count + ((*PLATFORM).get_delta_time)();
+    &mut (*LIB).api
 }
 
 unsafe extern "C" fn render() {
-    let state = &*LIB;
+    let state = &mut *LIB;
+
+    state.count = state.count + ((*PLATFORM).get_delta_time)();
 
     gl::ClearColor(state.count.min(1.0), 0.0, 0.0, 1.0);
     // gl::ClearColor(0.0, 0.0, 0.0, 1.0);

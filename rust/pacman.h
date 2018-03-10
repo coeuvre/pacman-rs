@@ -18,7 +18,6 @@ enum PlatformEventId {
 
 typedef struct LibApi {
     void (*on_platform_event)(int event_id, void *data);
-    void (*update)(void);
     void (*render)(void);
 } LibApi;
 
