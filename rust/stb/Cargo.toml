@@ -1,0 +1,9 @@
+[package]
+name = "stb"
+version = "0.1.0"
+authors = ["Coeuvre Wong <coeuvre@gmail.com>"]
+
+[dependencies]
+
+[build-dependencies]
+cc = "1.0"

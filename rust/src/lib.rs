@@ -1,9 +1,12 @@
-#[macro_use]
-extern crate log;
+#[macro_use] extern crate log;
+extern crate failure;
+
 extern crate gl;
 extern crate bridge;
+extern crate stb;
 
-mod game;
+pub mod game;
+pub mod image;
 
 use std::ffi::{CStr, CString};
 use game::*;
@@ -19,6 +22,11 @@ pub unsafe extern "C" fn game_main(platform: *mut bridge::Platform) {
 
     let glversion = CStr::from_ptr(gl::GetString(gl::VERSION) as *const ::std::os::raw::c_char);
     info!("OpenGL Version {}", glversion.to_str().unwrap());
+
+    if let Err(e) = image::Image::load("example.png") {
+        error!("An error occurs: {}", e);
+        return;
+    }
 
     let mut game = Game::new();
 
