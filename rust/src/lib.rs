@@ -66,9 +66,12 @@ pub unsafe extern "C" fn game_render() {
     state.game.render();
 }
 
-pub unsafe extern "C" fn game_on_platform_event(event: bridge::PlatformEvent) {
+#[no_mangle]
+pub unsafe extern "C" fn game_on_platform_event(event: *mut bridge::PlatformEvent) {
+    let event = &*event;
+    info!("{:?}", event);
     match event.kind {
-        // bridge::PLATFORM_EVENT_CLOSE => break 'game,
+        bridge::PLATFORM_EVENT_CLOSE => bridge::quit(),
         _ => {}
     }
 }

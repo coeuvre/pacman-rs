@@ -17,17 +17,17 @@ pub struct PlatformEvent {
 
 #[repr(C)]
 pub struct Platform {
+    quit: unsafe extern "C" fn(),
     log: unsafe extern "C" fn(message: *const c_char),
 
     get_gl_proc_address: unsafe extern "C" fn(*const c_char) -> *const c_void,
-    swap_gl_buffer: unsafe extern "C" fn(),
 
     get_performance_counter: unsafe extern "C" fn() -> u64,
     get_performance_frequency: unsafe extern "C" fn() -> u64
 }
 
-pub unsafe fn poll_event(event: &mut PlatformEvent) -> bool {
-    ((*PLATFORM).poll_event)(event as *mut PlatformEvent) != 0
+pub unsafe fn quit() {
+    ((*PLATFORM).quit)()
 }
 
 pub unsafe fn log(message: *const c_char) {
@@ -36,10 +36,6 @@ pub unsafe fn log(message: *const c_char) {
 
 pub unsafe fn get_gl_proc_address(symbol: *const c_char) -> *const c_void {
     ((*PLATFORM).get_gl_proc_address)(symbol)
-}
-
-pub unsafe fn swap_gl_buffer() {
-    ((*PLATFORM).swap_gl_buffer)()
 }
 
 pub unsafe fn get_performance_counter() -> u64 {
