@@ -108,7 +108,7 @@
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>pacman.lib;Dbghelp.lib;opengl32.lib;winmm.lib;Ws2_32.lib;UserEnv.lib;Shcore.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(ProjectDir)..\..\rust\target\debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>

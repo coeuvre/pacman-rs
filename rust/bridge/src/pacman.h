@@ -17,7 +17,6 @@ typedef struct PlatformEvent {
 
 typedef struct Platform {
     void (*quit)(void);
-    void (*log)(const char *message);
 
     void *(*get_gl_proc_address)(const char *name);
 

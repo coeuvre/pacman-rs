@@ -10,6 +10,7 @@ crate-type = ["staticlib"]
 log = "0.4"
 lazy_static = "1.0"
 failure = "0.1"
+env_logger = "*"
 
 bridge = { path = "bridge" }
 gl = { path = "gl" }

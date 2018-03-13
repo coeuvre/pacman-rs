@@ -1,5 +1,6 @@
 #[macro_use] extern crate log;
 extern crate failure;
+extern crate env_logger;
 
 extern crate gl;
 extern crate bridge;
@@ -33,6 +34,7 @@ static mut STATE: *mut State = 0 as *mut State;
 
 #[no_mangle]
 pub unsafe extern "C" fn game_load(platform: *mut bridge::Platform) {
+    env_logger::init();
     bridge::init(platform);
 
     gl::load_with(|s| {
@@ -43,8 +45,10 @@ pub unsafe extern "C" fn game_load(platform: *mut bridge::Platform) {
     let glversion = CStr::from_ptr(gl::GetString(gl::VERSION) as *const ::std::os::raw::c_char);
     info!("OpenGL Version {}", glversion.to_str().unwrap());
 
-    if let Err(e) = image::Image::load("example.png") {
+    if let Err(e) = image::Image::load("examplaeasdasd.png") {
         error!("An error occurs: {}", e);
+        //error!("An error occurs: {}", e);
+        //bridge::quit();
     }
 
     STATE = Box::into_raw(Box::new(State::new()));
@@ -60,9 +64,10 @@ pub unsafe extern "C" fn game_render() {
     if delta >= FRAMETIME {
         state.last_counter = current_counter;
         state.game.update(FRAMETIME);
-        info!("Render frame {}, delta {}", state.frame, delta);
         state.frame = state.frame + 1;
+        info!("Update game state for frame {}, delta {}", state.frame, delta);
     }
+    info!("Render frame {}", state.frame);
     state.game.render();
 }
 
