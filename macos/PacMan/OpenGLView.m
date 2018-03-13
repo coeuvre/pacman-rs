@@ -4,8 +4,7 @@
 
 static CFBundleRef OPENGL_BUNDLE_REF = nil;
 
-Platform platform;
-PacManLib *lib;
+Platform PLATFORM;
 
 void *getGLProcAddress(const char *name) {
     CFStringRef symbolName = CFStringCreateWithCString(kCFAllocatorDefault, name, kCFStringEncodingASCII);
@@ -13,6 +12,10 @@ void *getGLProcAddress(const char *name) {
     CFRelease(symbolName);
     return symbol;
 }
+
+//void log(const char *message) {
+//    NSLog()
+//}
 
 @implementation OpenGLView {
     CVDisplayLinkRef displayLink; //display link for managing rendering thread
@@ -53,6 +56,9 @@ void *getGLProcAddress(const char *name) {
     GLint swapInt = 1;
     [[self openGLContext] setValues:&swapInt forParameter:NSOpenGLCPSwapInterval];
 
+    PLATFORM.get_gl_proc_address = &getGLProcAddress;
+    game_load(&PLATFORM);
+    
     // Create a display link capable of being used with all active displays
     CVDisplayLinkCreateWithActiveCGDisplays(&displayLink);
 
@@ -77,9 +83,7 @@ void *getGLProcAddress(const char *name) {
 - (void)renderFrame {
     CGLLockContext([[self openGLContext] CGLContextObj]);
     
-    if (lib != nil) {
-        lib->render();
-    }
+    game_render();
     
     CGLFlushDrawable([[self openGLContext] CGLContextObj]);
     CGLUnlockContext([[self openGLContext] CGLContextObj]);
@@ -88,24 +92,16 @@ void *getGLProcAddress(const char *name) {
 - (CVReturn)getFrameForTime:(const CVTimeStamp*)outputTime {
     [[self openGLContext] makeCurrentContext];
     
-    if (lib == nil) {
-        platform.get_gl_proc_address = &getGLProcAddress;
-        lib = pacman_init(&platform);
-        assert(lib != nil);
-    }
-    
-    lib->update();
-    
     [self renderFrame];
     
     return kCVReturnSuccess;
 }
 
-- (void)reshape {
-    if (lib != nil) {
-        lib->on_platform_event(0, 0);
-    }
-}
+//- (void)reshape {
+//    if (lib != nil) {
+//        lib->on_platform_event(0, 0);
+//    }
+//}
 
 // This is the renderer output callback function
 static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeStamp* now, const CVTimeStamp* outputTime, CVOptionFlags flagsIn, CVOptionFlags* flagsOut, void* displayLinkContext) {

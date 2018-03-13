@@ -17,8 +17,6 @@ pub struct PlatformEvent {
 
 #[repr(C)]
 pub struct Platform {
-    poll_event: unsafe extern "C" fn(event: *mut PlatformEvent) -> c_int,
-
     log: unsafe extern "C" fn(message: *const c_char),
 
     get_gl_proc_address: unsafe extern "C" fn(*const c_char) -> *const c_void,

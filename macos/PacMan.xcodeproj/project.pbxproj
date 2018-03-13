@@ -308,7 +308,7 @@
 				CODE_SIGN_ENTITLEMENTS = PacMan/PacMan.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				HEADER_SEARCH_PATHS = "$(SRCROOT)/../rust";
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/../rust/bridge/src";
 				INFOPLIST_FILE = PacMan/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../rust/target/debug";
@@ -325,7 +325,7 @@
 				CODE_SIGN_ENTITLEMENTS = PacMan/PacMan.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				HEADER_SEARCH_PATHS = "$(SRCROOT)/../rust";
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/../rust/bridge/src";
 				INFOPLIST_FILE = PacMan/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../rust/target/release";

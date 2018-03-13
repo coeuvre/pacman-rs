@@ -16,8 +16,6 @@ typedef struct PlatformEvent {
 } PlatformEvent;
 
 typedef struct Platform {
-    int (*poll_event)(PlatformEvent *event);
-
     void (*log)(const char *message);
 
     void *(*get_gl_proc_address)(const char *name);
@@ -27,7 +25,11 @@ typedef struct Platform {
     uint64_t (*get_performance_frequency)(void);
 } Platform;
 
-extern void game_main(Platform *);
+extern void game_load(Platform *);
+
+extern void game_render(void);
+
+extern void game_on_platform_event(PlatformEvent event);
 
 #ifdef __cplusplus
 }
