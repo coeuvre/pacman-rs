@@ -26,6 +26,8 @@ typedef struct Platform {
 
 extern void game_load(Platform *);
 
+extern void game_quit(void);
+
 extern void game_render(void);
 
 extern void game_on_platform_event(PlatformEvent *event);
