@@ -2,6 +2,9 @@
 
 #import "pacman.h"
 
+#include <mach/mach.h>
+#include <mach/mach_time.h>
+
 static CFBundleRef OPENGL_BUNDLE_REF = nil;
 
 Platform PLATFORM;
@@ -13,9 +16,15 @@ void *getGLProcAddress(const char *name) {
     return symbol;
 }
 
-//void log(const char *message) {
-//    NSLog()
-//}
+uint64_t getPerformanceCounter() {
+    return mach_absolute_time();
+}
+
+uint64_t getPerformanceFrequency() {
+    mach_timebase_info_data_t timebaseInfo;
+    mach_timebase_info(&timebaseInfo);
+    return (uint64_t)(timebaseInfo.denom * 1000000000.0 / timebaseInfo.numer);
+}
 
 @implementation OpenGLView {
     CVDisplayLinkRef displayLink; //display link for managing rendering thread
@@ -57,6 +66,8 @@ void *getGLProcAddress(const char *name) {
     [[self openGLContext] setValues:&swapInt forParameter:NSOpenGLCPSwapInterval];
 
     PLATFORM.get_gl_proc_address = &getGLProcAddress;
+    PLATFORM.get_performance_counter = &getPerformanceCounter;
+    PLATFORM.get_performance_frequency = &getPerformanceFrequency;
     game_load(&PLATFORM);
     
     // Create a display link capable of being used with all active displays
@@ -75,6 +86,8 @@ void *getGLProcAddress(const char *name) {
 }
 
 - (void)dealloc {
+    game_quit();
+    
     // Release the display link
     CVDisplayLinkStop(displayLink);
     CVDisplayLinkRelease(displayLink);
