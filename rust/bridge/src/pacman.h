@@ -8,7 +8,8 @@ extern "C" {
 #include <stdint.h>
 
 enum PlatformEventKind {
-    PLATFORM_EVENT_CLOSE = 1,
+    PLATFORM_EVENT_RENDER = 1,
+    PLATFORM_EVENT_CLOSE = 2,
 };
 
 typedef struct PlatformEvent {
@@ -27,8 +28,6 @@ typedef struct Platform {
 extern void game_load(Platform *);
 
 extern void game_quit(void);
-
-extern void game_render(void);
 
 extern void game_on_platform_event(PlatformEvent *event);
 

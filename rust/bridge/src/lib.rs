@@ -1,6 +1,7 @@
 use std::os::raw::*;
 
-pub const PLATFORM_EVENT_CLOSE: c_int = 1;
+pub const PLATFORM_EVENT_RENDER: c_int = 1;
+pub const PLATFORM_EVENT_CLOSE: c_int = 2;
 
 static mut PLATFORM: *mut Platform = 0 as *mut Platform;
 

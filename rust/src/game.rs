@@ -12,6 +12,19 @@ pub struct PacMan {
     last_counter: u64
 }
 
+impl PacMan {
+    pub fn update(&mut self, _dt: f32) {
+
+    }
+
+    pub fn render(&self) {
+        unsafe {
+            gl::ClearColor(1.0, 0.0, 0.0, 1.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
+        }
+    }
+}
+
 impl Game for PacMan {
     fn load() -> PacMan {
         gl::load_with(|s| {
@@ -33,28 +46,23 @@ impl Game for PacMan {
         }
     }
 
-    fn render(&mut self) {
-        static FRAMETIME: f32 = 0.016;
-
-        let current_counter = unsafe { bridge::get_performance_counter() };
-        let delta = ((current_counter - self.last_counter) as f64 / self.frequency as f64) as f32;
-        if delta >= FRAMETIME {
-            self.last_counter = current_counter;
-            //self.game.update(FRAMETIME);
-            self.frame = self.frame + 1;
-            info!("Update game state for frame {}, delta {}", self.frame, delta);
-        }
-        info!("Render frame {}", self.frame);
-
-        unsafe {
-            gl::ClearColor(1.0, 0.0, 0.0, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT);
-        }
-    }
-
     fn on_platform_event(&mut self, event: &PlatformEvent) {
         info!("{:?}", event);
         match event.kind {
+            bridge::PLATFORM_EVENT_RENDER => {
+                static FRAMETIME: f32 = 0.016;
+
+                let current_counter = unsafe { bridge::get_performance_counter() };
+                let delta = ((current_counter - self.last_counter) as f64 / self.frequency as f64) as f32;
+                if delta + 0.001 >= FRAMETIME {
+                    self.last_counter = current_counter;
+                    self.update(FRAMETIME);
+                    self.frame = self.frame + 1;
+                    info!("Update game state for frame {}, delta {}", self.frame, delta);
+                }
+                info!("Render frame {}", self.frame);
+                self.render();
+            },
             bridge::PLATFORM_EVENT_CLOSE => unsafe { bridge::quit() },
             _ => {}
         }
