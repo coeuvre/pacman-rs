@@ -2,13 +2,26 @@ use std::os::raw::*;
 
 pub const PLATFORM_EVENT_RENDER: c_int = 1;
 pub const PLATFORM_EVENT_CLOSE: c_int = 2;
+pub const PLATFORM_EVENT_RESIZE: c_int = 3;
 
 static mut PLATFORM: *mut Platform = 0 as *mut Platform;
 
-#[derive(Debug)]
 #[repr(C)]
 pub struct PlatformEvent {
     pub kind: c_int,
+    pub data: PlatformEventData,
+}
+
+#[repr(C)]
+pub union PlatformEventData {
+    pub resize: PlatformEventDataResize,
+}
+
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct PlatformEventDataResize {
+    pub width: c_int,
+    pub height: c_int,
 }
 
 #[repr(C)]

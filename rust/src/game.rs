@@ -9,17 +9,27 @@ use super::image;
 pub struct PacMan {
     frame: u64,
     frequency: u64,
-    last_counter: u64
+    last_counter: u64,
+    render_count: u64,
 }
 
 impl PacMan {
+    pub fn new() -> PacMan {
+        PacMan {
+            frame: 0,
+            frequency: unsafe { bridge::get_performance_frequency() },
+            last_counter: unsafe { bridge::get_performance_counter() },
+            render_count: 0,
+        }
+    }
+
     pub fn update(&mut self, _dt: f32) {
 
     }
 
     pub fn render(&self) {
         unsafe {
-            gl::ClearColor(1.0, 0.0, 0.0, 1.0);
+            gl::ClearColor((self.frame as f32 / 255.0).min(1.0), 0.0, 0.0, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
         }
     }
@@ -39,15 +49,10 @@ impl Game for PacMan {
             error!("An error occurs: {}", e);
         }
 
-        PacMan {
-            frame: 0,
-            frequency: unsafe { bridge::get_performance_frequency() },
-            last_counter: unsafe { bridge::get_performance_counter() },
-        }
+        PacMan::new()
     }
 
     fn on_platform_event(&mut self, event: &PlatformEvent) {
-        info!("{:?}", event);
         match event.kind {
             bridge::PLATFORM_EVENT_RENDER => {
                 static FRAMETIME: f32 = 0.016;
@@ -58,12 +63,20 @@ impl Game for PacMan {
                     self.last_counter = current_counter;
                     self.update(FRAMETIME);
                     self.frame = self.frame + 1;
-                    info!("Update game state for frame {}, delta {}", self.frame, delta);
+                    //info!("Update game state for frame {}, delta {}", self.frame, delta);
                 }
                 info!("Render frame {}", self.frame);
                 self.render();
+                self.render_count = self.render_count + 1;
             },
             bridge::PLATFORM_EVENT_CLOSE => unsafe { bridge::quit() },
+            bridge::PLATFORM_EVENT_RESIZE => unsafe {
+                // let width = event.data.resize.width;
+                // let height = event.data.resize.height;
+                // info!("Resizing {}x{}", width, height);
+                // gl::Enable(gl::SCISSOR_TEST);
+                // gl::Scissor(0, 0, width / 2, height / 2);
+            },
             _ => {}
         }
     }

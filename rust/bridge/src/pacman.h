@@ -10,10 +10,17 @@ extern "C" {
 enum PlatformEventKind {
     PLATFORM_EVENT_RENDER = 1,
     PLATFORM_EVENT_CLOSE = 2,
+    PLATFORM_EVENT_RESIZE = 3,
 };
 
 typedef struct PlatformEvent {
     int kind;
+    union {
+        struct {
+            int width;
+            int height;
+        } resize;
+    } data;
 } PlatformEvent;
 
 typedef struct Platform {
