@@ -6,7 +6,7 @@ use std::io;
 use std::ffi::CStr;
 use std::marker::PhantomData;
 
-use failure::{Error, err_msg};
+use failure::{err_msg, Error};
 use stb::image::*;
 
 pub enum Image {
@@ -26,7 +26,12 @@ impl Image {
 
         let image = Self::load_from_memory(&buf)?;
 
-        info!("Loaded image {}, dimensions {}x{}", path.as_ref().to_string_lossy(), image.width(), image.height());
+        info!(
+            "Loaded image {}, dimensions {}x{}",
+            path.as_ref().to_string_lossy(),
+            image.width(),
+            image.height()
+        );
 
         Ok(image)
     }
@@ -38,14 +43,14 @@ impl Image {
     pub fn width(&self) -> usize {
         match *self {
             Image::RGBA8(ref inner) => inner.width,
-            Image::A8(ref inner) => inner.width
+            Image::A8(ref inner) => inner.width,
         }
     }
 
     pub fn height(&self) -> usize {
         match *self {
             Image::RGBA8(ref inner) => inner.height,
-            Image::A8(ref inner) => inner.height
+            Image::A8(ref inner) => inner.height,
         }
     }
 }
@@ -57,7 +62,7 @@ pub trait Pixel {
 }
 
 pub struct A8 {
-    pub a: u8
+    pub a: u8,
 }
 
 impl Pixel for A8 {
@@ -100,9 +105,11 @@ impl Inner<Rgba8> {
             );
 
             if data.is_null() {
-                return Err(err_msg(CStr::from_ptr(stbi_failure_reason())
-                    .to_string_lossy()
-                    .into_owned()));
+                return Err(err_msg(
+                    CStr::from_ptr(stbi_failure_reason())
+                        .to_string_lossy()
+                        .into_owned(),
+                ));
             }
 
             Ok(Inner {

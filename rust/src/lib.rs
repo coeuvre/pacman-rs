@@ -1,9 +1,11 @@
-#[macro_use] extern crate log;
-extern crate failure;
 extern crate env_logger;
+extern crate failure;
+#[macro_use]
+extern crate log;
 
+#[macro_use]
+extern crate bridge;
 extern crate gl;
-#[macro_use] extern crate bridge;
 extern crate stb;
 
 pub mod image;
@@ -22,15 +24,13 @@ impl PacMan {
     pub fn new() -> PacMan {
         PacMan {
             frame: 0,
-            frequency: unsafe { bridge::get_performance_frequency() },
-            last_counter: unsafe { bridge::get_performance_counter() },
+            frequency: bridge::get_performance_frequency(),
+            last_counter: bridge::get_performance_counter(),
             render_count: 0,
         }
     }
 
-    pub fn update(&mut self, _dt: f32) {
-
-    }
+    pub fn update(&mut self, _dt: f32) {}
 
     pub fn render(&self) {
         unsafe {
@@ -49,7 +49,8 @@ impl bridge::Game for PacMan {
             unsafe { bridge::get_gl_proc_address(cstring.as_ptr()) }
         });
 
-        let glversion = unsafe { CStr::from_ptr(gl::GetString(gl::VERSION) as *const ::std::os::raw::c_char) };
+        let glversion =
+            unsafe { CStr::from_ptr(gl::GetString(gl::VERSION) as *const ::std::os::raw::c_char) };
         info!("OpenGL Version {}", glversion.to_str().unwrap());
 
         if let Err(e) = image::Image::load("example.png") {
@@ -60,31 +61,29 @@ impl bridge::Game for PacMan {
     }
 
     fn on_platform_event(&mut self, event: &PlatformEvent) {
-        match event.kind {
-            bridge::PLATFORM_EVENT_RENDER => {
+        match *event {
+            bridge::PlatformEvent::Render => {
                 static FRAMETIME: f32 = 0.016;
 
-                let current_counter = unsafe { bridge::get_performance_counter() };
-                let delta = ((current_counter - self.last_counter) as f64 / self.frequency as f64) as f32;
+                let current_counter = bridge::get_performance_counter();
+                let delta =
+                    ((current_counter - self.last_counter) as f64 / self.frequency as f64) as f32;
                 if delta + 0.001 >= FRAMETIME {
                     self.last_counter = current_counter;
                     self.update(FRAMETIME);
                     self.frame = self.frame + 1;
                     //info!("Update game state for frame {}, delta {}", self.frame, delta);
                 }
-                //info!("Render frame {}", self.frame);
+                // info!("Render frame {}", self.frame);
                 self.render();
                 self.render_count = self.render_count + 1;
-            },
-            bridge::PLATFORM_EVENT_CLOSE => unsafe { bridge::quit() },
-            bridge::PLATFORM_EVENT_RESIZE => unsafe {
-                let width = event.data.resize.width;
-                let height = event.data.resize.height;
+            }
+            bridge::PlatformEvent::Close => bridge::quit(),
+            bridge::PlatformEvent::Resized { width, height } => unsafe {
                 info!("Resizing {}x{}", width, height);
                 gl::Enable(gl::SCISSOR_TEST);
                 gl::Scissor(0, 0, width / 2, height / 2);
             },
-            _ => {}
         }
     }
 }

@@ -31,7 +31,7 @@ pub struct Platform {
     get_gl_proc_address: unsafe extern "C" fn(*const c_char) -> *const c_void,
 
     get_performance_counter: unsafe extern "C" fn() -> u64,
-    get_performance_frequency: unsafe extern "C" fn() -> u64
+    get_performance_frequency: unsafe extern "C" fn() -> u64,
 }
 
 pub unsafe fn quit() {
