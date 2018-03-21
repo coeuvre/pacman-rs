@@ -1,6 +1,6 @@
 pub mod bridge;
 
-pub use bridge::get_gl_proc_address;
+pub use bridge::{get_gl_proc_address, swap_gl_buffers};
 
 pub enum PlatformEvent {
     Close,

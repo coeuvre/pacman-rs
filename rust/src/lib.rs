@@ -17,7 +17,6 @@ pub struct PacMan {
     frame: u64,
     frequency: u64,
     last_counter: u64,
-    render_count: u64,
 }
 
 impl PacMan {
@@ -26,7 +25,6 @@ impl PacMan {
             frame: 0,
             frequency: bridge::get_performance_frequency(),
             last_counter: bridge::get_performance_counter(),
-            render_count: 0,
         }
     }
 
@@ -62,27 +60,28 @@ impl bridge::Game for PacMan {
 
     fn on_platform_event(&mut self, event: &PlatformEvent) {
         match *event {
-            bridge::PlatformEvent::Render => {
+            PlatformEvent::Render => {
                 static FRAMETIME: f32 = 0.016;
 
                 let current_counter = bridge::get_performance_counter();
                 let delta =
                     ((current_counter - self.last_counter) as f64 / self.frequency as f64) as f32;
-                if delta + 0.001 >= FRAMETIME {
+                if self.frame == 0 || delta + 0.001 >= FRAMETIME {
                     self.last_counter = current_counter;
-                    self.update(FRAMETIME);
+
+                    info!("Rendering frame {}, delta {}", self.frame, delta);
                     self.frame = self.frame + 1;
-                    //info!("Update game state for frame {}, delta {}", self.frame, delta);
+
+                    self.update(FRAMETIME);
+
+                    self.render();
+                    unsafe { bridge::swap_gl_buffers() };
                 }
-                // info!("Render frame {}", self.frame);
-                self.render();
-                self.render_count = self.render_count + 1;
             }
-            bridge::PlatformEvent::Close => bridge::quit(),
-            bridge::PlatformEvent::Resized { width, height } => unsafe {
+            PlatformEvent::Close => bridge::quit(),
+            PlatformEvent::Resized { width, height } => unsafe {
                 info!("Resizing {}x{}", width, height);
-                gl::Enable(gl::SCISSOR_TEST);
-                gl::Scissor(0, 0, width / 2, height / 2);
+                gl::Viewport(0, 0, width, height);
             },
         }
     }

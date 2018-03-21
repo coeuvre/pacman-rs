@@ -27,6 +27,7 @@ typedef struct Platform {
     void (*quit)(void);
 
     void *(*get_gl_proc_address)(const char *name);
+    void (*swap_gl_buffers)(void);
 
     uint64_t (*get_performance_counter)(void);
     uint64_t (*get_performance_frequency)(void);

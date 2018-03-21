@@ -29,6 +29,7 @@ pub struct Platform {
     quit: unsafe extern "C" fn(),
 
     get_gl_proc_address: unsafe extern "C" fn(*const c_char) -> *const c_void,
+    swap_gl_buffers: unsafe extern "C" fn(),
 
     get_performance_counter: unsafe extern "C" fn() -> u64,
     get_performance_frequency: unsafe extern "C" fn() -> u64,
@@ -40,6 +41,10 @@ pub unsafe fn quit() {
 
 pub unsafe fn get_gl_proc_address(symbol: *const c_char) -> *const c_void {
     ((*PLATFORM).get_gl_proc_address)(symbol)
+}
+
+pub unsafe fn swap_gl_buffers() {
+    ((*PLATFORM).swap_gl_buffers)()
 }
 
 pub unsafe fn get_performance_counter() -> u64 {
