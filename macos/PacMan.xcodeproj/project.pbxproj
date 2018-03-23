@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		AB35CC21202AED29004D87DE /* libresolv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = AB35CC20202AED29004D87DE /* libresolv.tbd */; };
+		AB4570EC206577F7009EA996 /* OpenGLLayer.m in Sources */ = {isa = PBXBuildFile; fileRef = AB4570EB206577F7009EA996 /* OpenGLLayer.m */; };
 		AB48C6C0202AD97300CD51B2 /* OpenGLView.m in Sources */ = {isa = PBXBuildFile; fileRef = AB48C6BF202AD97300CD51B2 /* OpenGLView.m */; };
 		AB840205202AD87200301449 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = AB840204202AD87200301449 /* AppDelegate.m */; };
 		AB840208202AD87200301449 /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = AB840207202AD87200301449 /* ViewController.m */; };
@@ -19,6 +20,8 @@
 /* Begin PBXFileReference section */
 		AB35CC20202AED29004D87DE /* libresolv.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libresolv.tbd; path = usr/lib/libresolv.tbd; sourceTree = SDKROOT; };
 		AB35CC22202AED85004D87DE /* BuildRustLib.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = BuildRustLib.sh; sourceTree = "<group>"; };
+		AB4570EA206577F7009EA996 /* OpenGLLayer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OpenGLLayer.h; sourceTree = "<group>"; };
+		AB4570EB206577F7009EA996 /* OpenGLLayer.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = OpenGLLayer.m; sourceTree = "<group>"; };
 		AB48C6BE202AD97300CD51B2 /* OpenGLView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OpenGLView.h; sourceTree = "<group>"; };
 		AB48C6BF202AD97300CD51B2 /* OpenGLView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = OpenGLView.m; sourceTree = "<group>"; };
 		AB840200202AD87200301449 /* PacMan.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PacMan.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -79,6 +82,8 @@
 				AB840207202AD87200301449 /* ViewController.m */,
 				AB48C6BE202AD97300CD51B2 /* OpenGLView.h */,
 				AB48C6BF202AD97300CD51B2 /* OpenGLView.m */,
+				AB4570EA206577F7009EA996 /* OpenGLLayer.h */,
+				AB4570EB206577F7009EA996 /* OpenGLLayer.m */,
 				AB840209202AD87200301449 /* Assets.xcassets */,
 				AB84020B202AD87200301449 /* Main.storyboard */,
 				AB84020E202AD87200301449 /* Info.plist */,
@@ -180,6 +185,7 @@
 				AB840208202AD87200301449 /* ViewController.m in Sources */,
 				AB840210202AD87200301449 /* main.m in Sources */,
 				AB840205202AD87200301449 /* AppDelegate.m in Sources */,
+				AB4570EC206577F7009EA996 /* OpenGLLayer.m in Sources */,
 				AB48C6C0202AD97300CD51B2 /* OpenGLView.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

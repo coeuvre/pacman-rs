@@ -42,15 +42,6 @@ impl bridge::Game for PacMan {
     fn load() -> PacMan {
         env_logger::init();
 
-        gl::load_with(|s| {
-            let cstring = CString::new(s).unwrap();
-            unsafe { bridge::get_gl_proc_address(cstring.as_ptr()) }
-        });
-
-        let glversion =
-            unsafe { CStr::from_ptr(gl::GetString(gl::VERSION) as *const ::std::os::raw::c_char) };
-        info!("OpenGL Version {}", glversion.to_str().unwrap());
-
         if let Err(e) = image::Image::load("example.png") {
             error!("An error occurs: {}", e);
         }
@@ -61,11 +52,25 @@ impl bridge::Game for PacMan {
     fn on_platform_event(&mut self, event: &PlatformEvent) {
         match *event {
             PlatformEvent::Render => {
+
                 static FRAMETIME: f32 = 0.016;
 
                 let current_counter = bridge::get_performance_counter();
                 let delta =
                     ((current_counter - self.last_counter) as f64 / self.frequency as f64) as f32;
+
+                if self.frame == 0 {
+                    gl::load_with(|s| {
+                        let cstring = CString::new(s).unwrap();
+                        unsafe { bridge::get_gl_proc_address(cstring.as_ptr()) }
+                    });
+
+                    let glversion =
+                        unsafe { CStr::from_ptr(gl::GetString(gl::VERSION) as *const ::std::os::raw::c_char) };
+                    info!("OpenGL Version {}", glversion.to_str().unwrap());
+
+                }
+
                 if self.frame == 0 || delta + 0.001 >= FRAMETIME {
                     self.last_counter = current_counter;
 

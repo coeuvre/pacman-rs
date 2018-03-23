@@ -5,3 +5,4 @@ Release/
 target/
 **/*.rs.bk
 xcuserdata/
+.DS_Store

@@ -706,10 +706,13 @@
         <scene sceneID="hIz-AP-VOD">
             <objects>
                 <viewController id="XfG-lQ-9wD" customClass="ViewController" sceneMemberID="viewController">
-                    <customView key="view" id="iss-Aw-L2n" customClass="OpenGLView">
+                    <customView key="view" id="iss-Aw-L2n">
                         <rect key="frame" x="0.0" y="0.0" width="450" height="300"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                     </customView>
+                    <connections>
+                        <outlet property="gameView" destination="iss-Aw-L2n" id="l8a-Ht-CPg"/>
+                    </connections>
                 </viewController>
                 <customObject id="rPt-NT-nkU" userLabel="First Responder" customClass="NSResponder" sceneMemberID="firstResponder"/>
             </objects>
