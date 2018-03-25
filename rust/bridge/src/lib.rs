@@ -3,14 +3,14 @@ pub mod bridge;
 pub use bridge::{get_gl_proc_address, swap_gl_buffers};
 
 pub enum PlatformEvent {
-    Update,
-    Render,
     Close,
     Resized { width: i32, height: i32 }
 }
 
 pub trait Game {
     fn load() -> Self;
+    fn update(&mut self, dt: f32);
+    fn render(&self);
     fn on_platform_event(&mut self, event: &PlatformEvent);
 }
 
@@ -28,8 +28,6 @@ pub fn quit() {
 
 pub fn to_platform_event(event: &bridge::PlatformEvent) -> Option<PlatformEvent> {
     match event.kind {
-        bridge::PLATFORM_EVENT_UPDATE => Some(PlatformEvent::Update),
-        bridge::PLATFORM_EVENT_RENDER => Some(PlatformEvent::Render),
         bridge::PLATFORM_EVENT_CLOSE => Some(PlatformEvent::Close),
         bridge::PLATFORM_EVENT_RESIZE => Some(PlatformEvent::Resized {
             width: unsafe { event.data.resize.width },
@@ -60,9 +58,17 @@ macro_rules! entry {
         #[no_mangle]
         pub unsafe extern "C" fn game_on_platform_event(event: *mut $crate::bridge::PlatformEvent) {
             use $crate::Game;
+
+            static FRAMETIME: f32 = 0.016;
+
             let game = &mut *GAME;
-            if let Some(event) = $crate::to_platform_event(&*event) {
-                game.on_platform_event(&event);
+            let event = &*event;
+            match event.kind {
+                $crate::bridge::PLATFORM_EVENT_UPDATE => game.update(FRAMETIME),
+                $crate::bridge::PLATFORM_EVENT_RENDER => game.render(),
+                _ => if let Some(event) = $crate::to_platform_event(event) {
+                    game.on_platform_event(&event);
+                }
             }
         }
     }

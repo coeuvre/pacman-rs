@@ -137,10 +137,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeSt
     return kCVReturnSuccess;
 }
 
-- (CVReturn)getFrameForTime:(const CVTimeStamp*)outputTime {
+- (void)getFrameForTime:(const CVTimeStamp*)outputTime {
     [self setNeedsDisplay:YES];
-    
-    return kCVReturnSuccess;
 }
 
 @end

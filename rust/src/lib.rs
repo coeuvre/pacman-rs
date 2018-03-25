@@ -27,27 +27,6 @@ impl PacMan {
             last_counter: bridge::get_performance_counter(),
         }
     }
-
-    pub fn update(&mut self) {
-        //static FRAMETIME: f32 = 0.016;
-        let current_counter = bridge::get_performance_counter();
-        let delta =
-            ((current_counter - self.last_counter) as f64 / self.frequency as f64) as f32;
-        self.last_counter = current_counter;
-        self.frame = self.frame + 1;
-        info!("Update for frame {}, delta {}", self.frame, delta);
-    }
-
-    pub fn render(&self) {
-        info!("Rendering frame {}", self.frame);
-
-        unsafe {
-            gl::ClearColor((self.frame as f32 / 255.0).min(1.0), 1.0, 0.0, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT);
-
-            bridge::swap_gl_buffers();
-        }
-    }
 }
 
 impl bridge::Game for PacMan {
@@ -70,16 +49,28 @@ impl bridge::Game for PacMan {
         PacMan::new()
     }
 
+    fn update(&mut self, _dt: f32) {
+        let current_counter = bridge::get_performance_counter();
+        let delta =
+            ((current_counter - self.last_counter) as f64 / self.frequency as f64) as f32;
+        self.last_counter = current_counter;
+        self.frame = self.frame + 1;
+        info!("Update for frame {}, delta {}", self.frame, delta);
+    }
+
+    fn render(&self) {
+        info!("Rendering frame {}", self.frame);
+
+        unsafe {
+            gl::ClearColor((self.frame as f32 / 255.0).min(1.0), 1.0, 0.0, 1.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
+
+            bridge::swap_gl_buffers();
+        }
+    }
+
     fn on_platform_event(&mut self, event: &PlatformEvent) {
         match *event {
-            PlatformEvent::Update => {
-                self.update();
-            }
-
-            PlatformEvent::Render => {
-                self.render();
-            }
-
             PlatformEvent::Close => bridge::quit(),
 
             PlatformEvent::Resized { width, height } => unsafe {
