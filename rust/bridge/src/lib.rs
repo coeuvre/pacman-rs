@@ -3,8 +3,9 @@ pub mod bridge;
 pub use bridge::{get_gl_proc_address, swap_gl_buffers};
 
 pub enum PlatformEvent {
-    Close,
+    Update,
     Render,
+    Close,
     Resized { width: i32, height: i32 }
 }
 
@@ -27,8 +28,9 @@ pub fn quit() {
 
 pub fn to_platform_event(event: &bridge::PlatformEvent) -> Option<PlatformEvent> {
     match event.kind {
-        bridge::PLATFORM_EVENT_CLOSE => Some(PlatformEvent::Close),
+        bridge::PLATFORM_EVENT_UPDATE => Some(PlatformEvent::Update),
         bridge::PLATFORM_EVENT_RENDER => Some(PlatformEvent::Render),
+        bridge::PLATFORM_EVENT_CLOSE => Some(PlatformEvent::Close),
         bridge::PLATFORM_EVENT_RESIZE => Some(PlatformEvent::Resized {
             width: unsafe { event.data.resize.width },
             height: unsafe { event.data.resize.height },

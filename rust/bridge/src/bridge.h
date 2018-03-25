@@ -8,9 +8,10 @@ extern "C" {
 #include <stdint.h>
 
 enum PlatformEventKind {
-    PLATFORM_EVENT_RENDER = 1,
-    PLATFORM_EVENT_CLOSE = 2,
-    PLATFORM_EVENT_RESIZE = 3,
+    PLATFORM_EVENT_UPDATE = 1,
+    PLATFORM_EVENT_RENDER = 2,
+    PLATFORM_EVENT_CLOSE = 3,
+    PLATFORM_EVENT_RESIZE = 4,
 };
 
 typedef struct PlatformEvent {
