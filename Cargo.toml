@@ -12,8 +12,8 @@ lazy_static = "1.0"
 failure = "0.1"
 env_logger = "*"
 
-bridge = { path = "bridge" }
-gl = { path = "gl" }
-stb = { path = "stb" }
+bridge = { path = "src/bridge" }
+gl = { path = "src/gl" }
+stb = { path = "src/stb" }
 
 [workspace]

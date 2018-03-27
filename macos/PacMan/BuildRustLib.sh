@@ -2,6 +2,6 @@
 
 export PATH=$PATH:$HOME/.cargo/bin
 
-cd ${SRCROOT}/../rust
+cd ${SRCROOT}/..
 
 cargo build

@@ -17,14 +17,23 @@ pub struct PacMan {
     frame: u64,
     frequency: u64,
     last_counter: u64,
+    vbo: gl::types::GLuint,
 }
 
 impl PacMan {
     pub fn new() -> PacMan {
+        let mut vbo = 0;
+
+        unsafe {
+            gl::GenBuffers(1, &mut vbo);
+            gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
+        }
+
         PacMan {
             frame: 0,
             frequency: bridge::get_performance_frequency(),
             last_counter: bridge::get_performance_counter(),
+            vbo,
         }
     }
 }
@@ -62,7 +71,7 @@ impl bridge::Game for PacMan {
         info!("Rendering frame {}", self.frame);
 
         unsafe {
-            gl::ClearColor((self.frame as f32 / 255.0).min(1.0), 1.0, 0.0, 1.0);
+            gl::ClearColor(0.0, 0.0, 0.0, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
 
             bridge::swap_gl_buffers();
