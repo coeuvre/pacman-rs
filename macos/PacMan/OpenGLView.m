@@ -126,9 +126,8 @@ uint64_t getPerformanceFrequency() {
 }
 
 - (void)dealloc {
-    game_quit();
     OPENGL_VIEW = NULL;
-    
+
     // Release the display link
     CVDisplayLinkStop(displayLink);
     CVDisplayLinkRelease(displayLink);

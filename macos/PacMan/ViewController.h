@@ -3,4 +3,3 @@
 @interface ViewController : NSViewController <NSWindowDelegate>
 
 @end
-
