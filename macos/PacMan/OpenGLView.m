@@ -12,10 +12,15 @@
 
 static CFBundleRef OPENGL_BUNDLE_REF = nil;
 
+int QUIT = 0;
 Platform PLATFORM;
 void *OPENGL_VIEW;
 
 void quit() {
+    QUIT = 1;
+    @autoreleasepool {
+        [NSApp terminate:(__bridge OpenGLView *)OPENGL_VIEW];
+    }
 }
 
 void *getGLProcAddress(const char *name) {
@@ -121,6 +126,9 @@ uint64_t getPerformanceFrequency() {
 }
 
 - (void)dealloc {
+    game_quit();
+    OPENGL_VIEW = NULL;
+    
     // Release the display link
     CVDisplayLinkStop(displayLink);
     CVDisplayLinkRelease(displayLink);
