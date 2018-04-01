@@ -268,7 +268,7 @@ impl PacMan {
                 0,
                 gl::RGBA,
                 gl::UNSIGNED_BYTE,
-                image.date().as_ptr() as *const c_void,
+                image.data().as_rgba8_ptr().unwrap() as *const c_void,
             );
         }
 
