@@ -1,5 +1,5 @@
 use std;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::fs::File;
 use std::io::prelude::*;
 use std::io;
@@ -9,13 +9,21 @@ use std::marker::PhantomData;
 use failure::{err_msg, Error};
 use stb::image::*;
 
+fn base() -> PathBuf {
+    // TODO(coeuvre): Other platform?
+    std::env::current_exe().unwrap().parent().unwrap().parent().unwrap().join("Resources").join("assets")
+}
+
 pub enum Image {
     RGBA8(Inner<Rgba8>),
     A8(Inner<A8>),
 }
 
 impl Image {
-    pub fn load<P: AsRef<Path>>(path: P) -> Result<Image, Error> {
+    pub fn load_and_flip<P: AsRef<Path>>(path: P) -> Result<Image, Error> {
+        let path = base().join(path);
+        trace!("Loading image {}", path.display());
+
         let mut file = File::open(&path)?;
 
         let file_size = file.seek(io::SeekFrom::End(0))? as usize;
@@ -24,20 +32,13 @@ impl Image {
         let mut buf = Vec::with_capacity(file_size);
         file.read_to_end(&mut buf)?;
 
-        let image = Self::load_from_memory(&buf)?;
-
-        info!(
-            "Loaded image {}, dimensions {}x{}",
-            path.as_ref().to_string_lossy(),
-            image.width(),
-            image.height()
-        );
+        let image = Self::load_from_memory_and_flip(&buf)?;
 
         Ok(image)
     }
 
-    pub fn load_from_memory(buf: &[u8]) -> Result<Image, Error> {
-        Inner::<Rgba8>::load_from_memory(buf).and_then(|inner| Ok(Image::RGBA8(inner)))
+    pub fn load_from_memory_and_flip(buf: &[u8]) -> Result<Image, Error> {
+        Inner::<Rgba8>::load_from_memory_and_flip(buf).and_then(|inner| Ok(Image::RGBA8(inner)))
     }
 
     pub fn width(&self) -> usize {
@@ -51,6 +52,13 @@ impl Image {
         match *self {
             Image::RGBA8(ref inner) => inner.height,
             Image::A8(ref inner) => inner.height,
+        }
+    }
+
+    pub fn date(&self) -> &[u8] {
+        match *self {
+            Image::RGBA8(ref inner) => inner.data(),
+            Image::A8(ref inner) => inner.data(),
         }
     }
 }
@@ -90,11 +98,13 @@ pub struct Inner<P: Pixel> {
 }
 
 impl Inner<Rgba8> {
-    fn load_from_memory(buf: &[u8]) -> Result<Self, Error> {
+    fn load_from_memory_and_flip(buf: &[u8]) -> Result<Self, Error> {
         let mut width = 0;
         let mut height = 0;
         let mut num_channel = 0;
         unsafe {
+            stbi_set_flip_vertically_on_load(1);
+
             let data = stbi_load_from_memory(
                 buf.as_ptr() as *mut u8,
                 buf.len() as i32,
@@ -128,8 +138,9 @@ impl<P: Pixel> Inner<P> {
     }
 }
 
-// impl<C: Component> Drop for Image<C> {
-//     fn drop(&mut self) {
-//         unsafe { stbi_image_free(self.data as *mut u8) };
-//     }
-// }
+impl<P: Pixel> Drop for Inner<P> {
+    fn drop(&mut self) {
+        trace!("Drop image");
+        unsafe { stbi_image_free(self.data as *mut u8) };
+    }
+}

@@ -1,6 +1,8 @@
 use std::os::raw::{c_char, c_int, c_uchar};
 
 extern "C" {
+    pub fn stbi_set_flip_vertically_on_load(flag_true_if_should_flip: c_int);
+
     pub fn stbi_load_from_memory(
         buffer: *const c_uchar,
         len: c_int,
