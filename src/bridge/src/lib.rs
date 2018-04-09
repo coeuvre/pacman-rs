@@ -3,14 +3,14 @@ pub mod bridge;
 pub use bridge::{get_gl_proc_address, swap_gl_buffers};
 
 pub enum PlatformEvent {
+    Update { dt: f32 },
+    Render,
     Close,
     Resized { width: i32, height: i32 }
 }
 
-pub trait Game {
+pub trait Runner {
     fn load() -> Self;
-    fn update(&mut self, dt: f32);
-    fn render(&self);
     fn on_platform_event(&mut self, event: &PlatformEvent);
 }
 
@@ -27,7 +27,11 @@ pub fn quit() {
 }
 
 pub fn to_platform_event(event: &bridge::PlatformEvent) -> Option<PlatformEvent> {
+    static FRAMETIME: f32 = 0.016;
+
     match event.kind {
+        bridge::PLATFORM_EVENT_UPDATE => Some(PlatformEvent::Update { dt: FRAMETIME }),
+        bridge::PLATFORM_EVENT_RENDER => Some(PlatformEvent::Render),
         bridge::PLATFORM_EVENT_CLOSE => Some(PlatformEvent::Close),
         bridge::PLATFORM_EVENT_RESIZE => Some(PlatformEvent::Resized {
             width: unsafe { event.data.resize.width },
@@ -40,34 +44,30 @@ pub fn to_platform_event(event: &bridge::PlatformEvent) -> Option<PlatformEvent>
 #[macro_export]
 macro_rules! entry {
     ($t:ty) => {
-        static mut GAME: *mut $t = 0 as *mut $t;
+        static mut RUNNER: *mut $t = 0 as *mut $t;
 
         #[no_mangle]
         pub unsafe extern "C" fn game_load(platform: *mut $crate::bridge::Platform) {
-            use $crate::Game;
+            use $crate::Runner;
             $crate::bridge::init(platform);
-            GAME = Box::into_raw(Box::new(<$t>::load()))
+            RUNNER = Box::into_raw(Box::new(<$t>::load()))
         }
 
         #[no_mangle]
         pub unsafe extern "C" fn game_quit() {
-            Box::from_raw(GAME);
-            GAME = 0 as *mut $t;
+            Box::from_raw(RUNNER);
+            RUNNER = 0 as *mut $t;
         }
 
         #[no_mangle]
         pub unsafe extern "C" fn game_on_platform_event(event: *mut $crate::bridge::PlatformEvent) {
-            use $crate::Game;
+            use $crate::Runner;
 
-            static FRAMETIME: f32 = 0.016;
-
-            let game = &mut *GAME;
+            let runner = &mut *RUNNER;
             let event = &*event;
             match event.kind {
-                $crate::bridge::PLATFORM_EVENT_UPDATE => game.update(FRAMETIME),
-                $crate::bridge::PLATFORM_EVENT_RENDER => game.render(),
                 _ => if let Some(event) = $crate::to_platform_event(event) {
-                    game.on_platform_event(&event);
+                    runner.on_platform_event(&event);
                 }
             }
         }

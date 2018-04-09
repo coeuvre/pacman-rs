@@ -15,6 +15,7 @@ use std::os::raw::*;
 use gl::types::*;
 use bridge::PlatformEvent;
 use failure::{err_msg, Error};
+use image::Image;
 
 static VERTEX_SHADER: &str = r#"
 #version 330 core
@@ -145,19 +146,30 @@ impl Drop for GlProgram {
     }
 }
 
-pub struct PacMan {
-    frame: u64,
-    frequency: u64,
-    last_counter: u64,
+pub struct GlTexture {
+    id: GLuint
+}
+
+pub struct GlRenderer {
     program: GlProgram,
-    texture: GLuint,
     vao: GLuint,
     vbo: GLuint,
     ebo: GLuint,
 }
 
-impl PacMan {
-    pub fn new() -> PacMan {
+impl GlRenderer {
+    pub fn new() -> Result<GlRenderer, Error> {
+        gl::load_with(|s| {
+            let cstring = CString::new(s).unwrap();
+            unsafe { bridge::get_gl_proc_address(cstring.as_ptr()) }
+        });
+
+        let glversion =
+            unsafe { CStr::from_ptr(gl::GetString(gl::VERSION) as *const ::std::os::raw::c_char) };
+        info!("OpenGL Version {}", glversion.to_str().unwrap());
+
+        unsafe { gl::Enable(gl::FRAMEBUFFER_SRGB); }
+
         let vertices = [
             // Top Right
             1.0 as GLfloat,
@@ -197,10 +209,10 @@ impl PacMan {
         let mut ebo = 0;
 
         let shaders = [
-            GlShader::compile_vertex_shader(VERTEX_SHADER).unwrap(),
-            GlShader::compile_fragment_shader(FRAGMENT_SHADER).unwrap(),
+            GlShader::compile_vertex_shader(VERTEX_SHADER)?,
+            GlShader::compile_fragment_shader(FRAGMENT_SHADER)?,
         ];
-        let mut program = GlProgram::link(&shaders).unwrap();
+        let mut program = GlProgram::link(&shaders)?;
         program.active();
 
         unsafe {
@@ -250,7 +262,30 @@ impl PacMan {
             // gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
         }
 
-        let image = image::Image::load_and_flip("pacman.png").unwrap();
+        Ok(GlRenderer {
+            program,
+            vao,
+            vbo,
+            ebo,
+        })
+    }
+
+    pub fn swap_buffers(&mut self) -> Result<(), Error> {
+        unsafe {
+            bridge::swap_gl_buffers();
+        }
+        Ok(())
+    }
+
+    pub fn clear(&mut self, r: f32, g: f32, b: f32, a: f32) -> Result<(), Error> {
+        unsafe {
+            gl::ClearColor(r, g, b, a);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
+        }
+        Ok(())
+    }
+
+    pub fn load_texture(&mut self, image: &Image) -> Result<GlTexture, Error> {
         let mut texture = 0;
         unsafe {
             gl::GenTextures(1, &mut texture);
@@ -271,39 +306,44 @@ impl PacMan {
                 image.data().as_rgba8_ptr().unwrap() as *const c_void,
             );
         }
+        Ok(GlTexture { id: texture })
+    }
 
-        PacMan {
-            frame: 0,
-            frequency: bridge::get_performance_frequency(),
-            last_counter: bridge::get_performance_counter(),
-            program,
-            texture,
-            vao,
-            vbo,
-            ebo,
+    pub fn render_texture(&mut self, texture: &GlTexture) -> Result<(), Error> {
+        unsafe {
+            gl::ActiveTexture(gl::TEXTURE0);
+            gl::BindTexture(gl::TEXTURE_2D, texture.id);
+            gl::BindVertexArray(self.vao);
+            gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const c_void);
+            gl::BindVertexArray(0);
         }
+        Ok(())
     }
 }
 
-impl bridge::Game for PacMan {
-    fn load() -> PacMan {
-        env_logger::init();
+pub type Renderer = GlRenderer;
+pub type Texture = GlTexture;
 
-        gl::load_with(|s| {
-            let cstring = CString::new(s).unwrap();
-            unsafe { bridge::get_gl_proc_address(cstring.as_ptr()) }
-        });
+pub struct PacMan {
+    frame: u64,
+    frequency: u64,
+    last_counter: u64,
+    texture: Texture,
+}
 
-        let glversion =
-            unsafe { CStr::from_ptr(gl::GetString(gl::VERSION) as *const ::std::os::raw::c_char) };
-        info!("OpenGL Version {}", glversion.to_str().unwrap());
-
-        unsafe { gl::Enable(gl::FRAMEBUFFER_SRGB); }
-
-        PacMan::new()
+impl Game for PacMan {
+    fn load(renderer: &mut Renderer) -> Result<PacMan, Error> {
+        let image = image::Image::load_and_flip("pacman.png").unwrap();
+        let texture = renderer.load_texture(&image).unwrap();
+        Ok(PacMan {
+            frame: 0,
+            frequency: bridge::get_performance_frequency(),
+            last_counter: bridge::get_performance_counter(),
+            texture,
+        })
     }
 
-    fn update(&mut self, _dt: f32) {
+    fn update(&mut self, _input: &Input) {
         let current_counter = bridge::get_performance_counter();
         let delta = ((current_counter - self.last_counter) as f64 / self.frequency as f64) as f32;
         self.last_counter = current_counter;
@@ -311,27 +351,69 @@ impl bridge::Game for PacMan {
         trace!("Update for frame {}, delta {}", self.frame, delta);
     }
 
-    fn render(&self) {
+    fn render(&self, renderer: &mut Renderer) {
         trace!("Rendering frame {}", self.frame);
 
-        unsafe {
-            gl::ClearColor(0.0, 0.0, 0.0, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT);
+        renderer.clear(0.0, 0.0, 0.0, 1.0).unwrap();
 
-            gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_2D, self.texture);
-            gl::BindVertexArray(self.vao);
-            gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const c_void);
-            gl::BindVertexArray(0);
+        renderer.render_texture(&self.texture).unwrap();
 
-            bridge::swap_gl_buffers();
+        renderer.swap_buffers().unwrap();
+    }
+}
+
+pub struct Input {
+    delta: f32,
+}
+
+impl Input {
+    pub fn new() -> Input {
+        Input {
+            delta: 0.0,
         }
+    }
+}
+
+pub trait Game: Sized {
+    fn load(renderer: &mut Renderer) -> Result<Self, Error>;
+    fn update(&mut self, input: &Input);
+    fn render(&self, renderer: &mut Renderer);
+}
+
+pub struct DesktopRunner<G> {
+    renderer: Renderer,
+    input: Input,
+    game: G,
+}
+
+impl<G: Game> DesktopRunner<G> {
+    pub fn new() -> Result<DesktopRunner<G>, Error> {
+        let mut renderer = GlRenderer::new()?;
+        let input = Input::new();
+        let game = G::load(&mut renderer)?;
+        Ok(DesktopRunner {
+            renderer,
+            input,
+            game,
+        })
+    }
+}
+
+impl<G: Game> bridge::Runner for DesktopRunner<G> {
+    fn load() -> DesktopRunner<G> {
+        env_logger::init();
+
+        DesktopRunner::new().unwrap()
     }
 
     fn on_platform_event(&mut self, event: &PlatformEvent) {
         match *event {
+            PlatformEvent::Update { dt } => {
+                self.input.delta = dt;
+                self.game.update(&self.input);
+            },
+            PlatformEvent::Render => self.game.render(&mut self.renderer),
             PlatformEvent::Close => bridge::quit(),
-
             PlatformEvent::Resized { width, height } => unsafe {
                 trace!("Resizing {}x{}", width, height);
                 gl::Viewport(0, 0, width, height);
@@ -340,4 +422,4 @@ impl bridge::Game for PacMan {
     }
 }
 
-entry!(PacMan);
+entry!(DesktopRunner<PacMan>);
