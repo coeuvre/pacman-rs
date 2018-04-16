@@ -42,7 +42,7 @@ pub struct Image {
 }
 
 impl Image {
-    pub fn load_and_flip<P: AsRef<Path>>(path: P) -> Result<Image, Error> {
+    pub fn load<P: AsRef<Path>>(path: P) -> Result<Image, Error> {
         let path = base().join(path);
         trace!("Loading image {}", path.display());
 
@@ -54,13 +54,13 @@ impl Image {
         let mut buf = Vec::with_capacity(file_size);
         file.read_to_end(&mut buf)?;
 
-        let image = Self::load_from_memory_and_flip(&buf)?;
+        let image = Self::load_from_memory(&buf)?;
 
         Ok(image)
     }
 
-    pub fn load_from_memory_and_flip(buf: &[u8]) -> Result<Image, Error> {
-        let i = StbImage::load_from_memory_and_flip(buf)?;
+    pub fn load_from_memory(buf: &[u8]) -> Result<Image, Error> {
+        let i = StbImage::load_from_memory(buf)?;
         assert!(i.num_channel == 4);
 
         let data = unsafe {
@@ -115,12 +115,12 @@ pub struct StbImage {
 }
 
 impl StbImage {
-    fn load_from_memory_and_flip(buf: &[u8]) -> Result<StbImage, Error> {
+    fn load_from_memory(buf: &[u8]) -> Result<StbImage, Error> {
         let mut width = 0;
         let mut height = 0;
         let mut num_channel = 0;
         unsafe {
-            stbi_set_flip_vertically_on_load(1);
+            stbi_set_flip_vertically_on_load(0);
 
             let data = stbi_load_from_memory(
                 buf.as_ptr() as *mut u8,

@@ -11,6 +11,7 @@ extern crate stb;
 pub mod image;
 
 use std::ffi::{CStr, CString};
+use std::path::{Path, PathBuf};
 use std::os::raw::*;
 use gl::types::*;
 use bridge::PlatformEvent;
@@ -146,19 +147,16 @@ impl Drop for GlProgram {
     }
 }
 
+#[derive(Debug)]
 pub struct GlTexture {
     id: GLuint
 }
 
-pub struct GlRenderer {
-    program: GlProgram,
-    vao: GLuint,
-    vbo: GLuint,
-    ebo: GLuint,
+pub struct GlContext {
 }
 
-impl GlRenderer {
-    pub fn new() -> Result<GlRenderer, Error> {
+impl GlContext {
+    pub fn new() -> GlContext {
         gl::load_with(|s| {
             let cstring = CString::new(s).unwrap();
             unsafe { bridge::get_gl_proc_address(cstring.as_ptr()) }
@@ -168,6 +166,21 @@ impl GlRenderer {
             unsafe { CStr::from_ptr(gl::GetString(gl::VERSION) as *const ::std::os::raw::c_char) };
         info!("OpenGL Version {}", glversion.to_str().unwrap());
 
+        GlContext {}
+    }
+}
+
+pub struct GlRenderer {
+    gl_context: *mut GlContext,
+    assets: *const Assets,
+    program: GlProgram,
+    vao: GLuint,
+    vbo: GLuint,
+    ebo: GLuint,
+}
+
+impl GlRenderer {
+    pub fn new(gl_context: *mut GlContext, assets: *const Assets) -> Result<GlRenderer, Error> {
         unsafe { gl::Enable(gl::FRAMEBUFFER_SRGB); }
 
         let vertices = [
@@ -263,6 +276,8 @@ impl GlRenderer {
         }
 
         Ok(GlRenderer {
+            gl_context,
+            assets,
             program,
             vao,
             vbo,
@@ -285,7 +300,46 @@ impl GlRenderer {
         Ok(())
     }
 
-    pub fn load_texture(&mut self, image: &Image) -> Result<GlTexture, Error> {
+    pub fn render_texture(&mut self, texture_id: usize) -> Result<(), Error> {
+        unsafe {
+            let texture = (&*self.assets).get_texture(texture_id).ok_or_else(|| err_msg(format!("Invalid texture id {}", texture_id)))?;
+        println!("Loaded texture {}, {}, {}", texture.id, texture.name, texture.gl_texture.id);
+            gl::ActiveTexture(gl::TEXTURE0);
+            gl::BindTexture(gl::TEXTURE_2D, texture.gl_texture.id);
+            gl::BindVertexArray(self.vao);
+            gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const c_void);
+            gl::BindVertexArray(0);
+        }
+        Ok(())
+    }
+}
+
+pub type Renderer = GlRenderer;
+
+#[derive(Debug)]
+pub struct Texture {
+    id: usize,
+    name: String,
+    gl_texture: GlTexture,
+}
+
+pub struct Assets {
+    gl_context: *mut GlContext,
+    textures: Vec<Texture>,
+}
+
+impl Assets {
+    pub fn new(gl_context: *mut GlContext) -> Assets {
+        Assets {
+            gl_context,
+            textures: Vec::new(),
+        }
+    }
+
+    pub fn load_texture<P: AsRef<Path>>(&mut self, path: P) -> Result<usize, Error> {
+        let name = path.as_ref().to_str().ok_or_else(|| err_msg(format!("Invalid path {}", path.as_ref().display())))?.to_string();
+        let image = Image::load(path)?;
+
         let mut texture = 0;
         unsafe {
             gl::GenTextures(1, &mut texture);
@@ -306,49 +360,46 @@ impl GlRenderer {
                 image.data().as_rgba8_ptr().unwrap() as *const c_void,
             );
         }
-        Ok(GlTexture { id: texture })
+        let id = self.textures.len();
+        let result = Texture {
+            id,
+            name,
+            gl_texture: GlTexture { id: texture }
+        };
+        self.textures.push(result);
+        Ok(id)
     }
 
-    pub fn render_texture(&mut self, texture: &GlTexture) -> Result<(), Error> {
-        unsafe {
-            gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_2D, texture.id);
-            gl::BindVertexArray(self.vao);
-            gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const c_void);
-            gl::BindVertexArray(0);
-        }
-        Ok(())
+    pub fn get_texture(&self, id: usize) -> Option<&Texture> {
+        self.textures.get(id)
     }
 }
-
-pub type Renderer = GlRenderer;
-pub type Texture = GlTexture;
 
 pub struct PacMan {
     frame: u64,
     frequency: u64,
     last_counter: u64,
-    texture: Texture,
+    texture_id: usize,
 }
 
 impl Game for PacMan {
-    fn load(renderer: &mut Renderer) -> Result<PacMan, Error> {
-        let image = image::Image::load_and_flip("pacman.png").unwrap();
-        let texture = renderer.load_texture(&image).unwrap();
+    fn load(assets: &mut Assets) -> Result<PacMan, Error> {
+        let texture_id = assets.load_texture("pacman.png").unwrap();
         Ok(PacMan {
             frame: 0,
             frequency: bridge::get_performance_frequency(),
             last_counter: bridge::get_performance_counter(),
-            texture,
+            texture_id,
         })
     }
 
-    fn update(&mut self, _input: &Input) {
+    fn update(&mut self, _input: &Input, assets: &mut Assets) {
         let current_counter = bridge::get_performance_counter();
         let delta = ((current_counter - self.last_counter) as f64 / self.frequency as f64) as f32;
         self.last_counter = current_counter;
         self.frame = self.frame + 1;
         trace!("Update for frame {}, delta {}", self.frame, delta);
+        trace!("{:?}", assets.textures);
     }
 
     fn render(&self, renderer: &mut Renderer) {
@@ -356,7 +407,7 @@ impl Game for PacMan {
 
         renderer.clear(0.0, 0.0, 0.0, 1.0).unwrap();
 
-        renderer.render_texture(&self.texture).unwrap();
+        renderer.render_texture(self.texture_id).unwrap();
 
         renderer.swap_buffers().unwrap();
     }
@@ -375,12 +426,14 @@ impl Input {
 }
 
 pub trait Game: Sized {
-    fn load(renderer: &mut Renderer) -> Result<Self, Error>;
-    fn update(&mut self, input: &Input);
+    fn load(assets: &mut Assets) -> Result<Self, Error>;
+    fn update(&mut self, input: &Input, assets: &mut Assets);
     fn render(&self, renderer: &mut Renderer);
 }
 
 pub struct DesktopRunner<G> {
+    gl_context: *mut GlContext,
+    assets: *mut Assets,
     renderer: Renderer,
     input: Input,
     game: G,
@@ -388,10 +441,14 @@ pub struct DesktopRunner<G> {
 
 impl<G: Game> DesktopRunner<G> {
     pub fn new() -> Result<DesktopRunner<G>, Error> {
-        let mut renderer = GlRenderer::new()?;
+        let gl_context = Box::into_raw(Box::new(GlContext::new()));
+        let assets = Box::into_raw(Box::new(Assets::new(gl_context)));
+        let renderer = GlRenderer::new(gl_context, assets)?;
         let input = Input::new();
-        let game = G::load(&mut renderer)?;
+        let game = G::load(unsafe { &mut *assets })?;
         Ok(DesktopRunner {
+            gl_context,
+            assets,
             renderer,
             input,
             game,
@@ -410,7 +467,7 @@ impl<G: Game> bridge::Runner for DesktopRunner<G> {
         match *event {
             PlatformEvent::Update { dt } => {
                 self.input.delta = dt;
-                self.game.update(&self.input);
+                self.game.update(&self.input, unsafe { &mut *self.assets });
             },
             PlatformEvent::Render => self.game.render(&mut self.renderer),
             PlatformEvent::Close => bridge::quit(),
