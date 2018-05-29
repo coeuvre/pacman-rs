@@ -9,6 +9,7 @@ extern crate gl;
 extern crate stb;
 
 pub mod image;
+pub mod gl_context;
 
 use std::ffi::{CStr, CString};
 use std::path::Path;
@@ -17,6 +18,7 @@ use gl::types::*;
 use bridge::PlatformEvent;
 use failure::{err_msg, Error};
 use image::Image;
+use gl_context::{GlContext, GlCapability};
 
 static VERTEX_SHADER: &str = r#"
 #version 330 core
@@ -151,52 +153,6 @@ pub struct GlTexture {
     id: GLuint
 }
 
-pub static mut CURRENT_GL_CONTEXT: *mut GlContext = 0 as *mut GlContext;
-
-pub struct GlContext {
-}
-
-impl GlContext {
-    pub fn init() -> Result<(), Error> {
-        let gl_context = Box::new(GlContext::new()?);
-        unsafe { CURRENT_GL_CONTEXT = Box::into_raw(gl_context); }
-        Ok(())
-    }
-
-    fn new() -> Result<GlContext, Error> {
-        gl::load_with(|s| {
-            let cstring = CString::new(s).unwrap();
-            unsafe { bridge::get_gl_proc_address(cstring.as_ptr()) }
-        });
-
-        let gl_version =
-            unsafe { CStr::from_ptr(gl::GetString(gl::VERSION) as *const ::std::os::raw::c_char) };
-        info!("OpenGL Version {}", gl_version.to_str().unwrap());
-
-        Ok(GlContext {})
-    }
-
-    pub fn current() -> Result<&'static GlContext, Error> {
-        unsafe {
-            if CURRENT_GL_CONTEXT == 0 as *mut GlContext {
-                Err(err_msg("Failed to get current gl context. Call GlContext::init() first."))
-            } else {
-                Ok(&*CURRENT_GL_CONTEXT)
-            }
-        }
-    }
-
-    pub fn current_mut() -> Result<&'static mut GlContext, Error> {
-        unsafe {
-            if CURRENT_GL_CONTEXT == 0 as *mut GlContext {
-                Err(err_msg("Failed to get current gl context. Call GlContext::init() first."))
-            } else {
-                Ok(&mut *CURRENT_GL_CONTEXT)
-            }
-        }
-    }
-}
-
 pub struct GlRenderer {
     program: GlProgram,
     vao: GLuint,
@@ -206,7 +162,7 @@ pub struct GlRenderer {
 
 impl GlRenderer {
     pub fn new() -> Result<GlRenderer, Error> {
-        unsafe { gl::Enable(gl::FRAMEBUFFER_SRGB); }
+        GlContext::current_mut().enable(GlCapability::FramebufferSrgb)?;
 
         let vertices = [
             // Top Right
