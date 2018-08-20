@@ -1,9 +1,5 @@
-[package]
-name = "pacman-rs"
-version = "0.1.0"
-authors = ["Coeuvre Wong <coeuvre@gmail.com>"]
-
-[dependencies]
-
-[target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = ["winuser"] }
+[workspace]
+members = [
+    "src/main",
+    "src/game"
+]
