@@ -5,7 +5,7 @@ version = "0.1.0"
 [lib]
 name = "game"
 path = "lib.rs"
-crate-type = ["cdylib"]
+crate-type = ["dylib"]
 
 
 [dependencies]
