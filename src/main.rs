@@ -13,6 +13,7 @@ use sdl2_sys::{
     SDL_GLattr::*,
     SDL_GLprofile::*,
     SDL_WindowFlags::*,
+    SDL_EventType::*,
 };
 
 fn main() -> Result<(), Error> {
@@ -74,9 +75,8 @@ unsafe fn sdl_game_loop(window: *mut SDL_Window) -> Result<(), Error> {
     'game: loop {
         let mut event = uninitialized::<SDL_Event>();
         while SDL_PollEvent(&mut event) != 0 {
-            let event_type: SDL_EventType = transmute(event.type_);
-            match event_type {
-                SDL_EventType::SDL_QUIT => {
+            match transmute::<_, SDL_EventType>(event.type_) {
+                SDL_QUIT => {
                     break 'game;
                 }
                 _ => {}
