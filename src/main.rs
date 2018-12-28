@@ -1,12 +1,8 @@
 use std::{
-    ffi::CString,
-    ptr::null_mut,
-    mem::{
-        uninitialized,
-        transmute
-    }
+    ffi::*,
+    ptr::*,
+    mem::*,
 };
-
 use failure::{Error, format_err};
 use sdl2_sys::{
     *,
@@ -15,6 +11,10 @@ use sdl2_sys::{
     SDL_WindowFlags::*,
     SDL_EventType::*,
 };
+
+mod renderer;
+
+use crate::renderer::*;
 
 fn main() -> Result<(), Error> {
     unsafe { sdl_main() }
@@ -68,10 +68,12 @@ unsafe fn sdl_main() -> Result<(), Error> {
         return sdl_error!();
     }
 
-    sdl_game_loop(window)
+    run_sdl_game_loop(window)
 }
 
-unsafe fn sdl_game_loop(window: *mut SDL_Window) -> Result<(), Error> {
+unsafe fn run_sdl_game_loop(window: *mut SDL_Window) -> Result<(), Error> {
+    init_gl(load_gl_fn);
+
     'game: loop {
         let mut event = uninitialized::<SDL_Event>();
         while SDL_PollEvent(&mut event) != 0 {
@@ -87,4 +89,9 @@ unsafe fn sdl_game_loop(window: *mut SDL_Window) -> Result<(), Error> {
     }
 
     Ok(())
+}
+
+fn load_gl_fn(symbol: &str) -> *const c_void {
+    let symbol = CString::new(symbol).unwrap();
+    unsafe { SDL_GL_GetProcAddress(symbol.as_ptr()) }
 }
