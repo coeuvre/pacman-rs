@@ -12,7 +12,9 @@ use sdl2_sys::{
     SDL_EventType::*,
 };
 
-mod renderer;
+pub mod renderer;
+pub mod math;
+pub mod bitmap;
 
 use crate::renderer::*;
 
@@ -72,7 +74,7 @@ unsafe fn sdl_main() -> Result<(), Error> {
 }
 
 unsafe fn run_sdl_game_loop(window: *mut SDL_Window) -> Result<(), Error> {
-    init_gl(load_gl_fn);
+    let _renderer = Renderer::new(load_gl_fn)?;
 
     'game: loop {
         let mut event = uninitialized::<SDL_Event>();

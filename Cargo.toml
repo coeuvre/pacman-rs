@@ -11,7 +11,12 @@ gl = { path = "gl" }
 version = "0.32.5"
 features = ["bundled", "static-link"]
 
+[dependencies.stb-sys]
+path = "stb-sys"
+features = ["image"]
+
 [workspace]
 members = [
-    "gl"
+    "gl",
+    "stb-sys"
 ]
