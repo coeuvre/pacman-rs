@@ -2,7 +2,8 @@ pub trait Pixel {
     const CHANNELS: u32;
 }
 
-pub trait SRGBPixel : Pixel {
+pub trait SRGBAPixel: Pixel {
+    fn srgba(&self) -> Vec<u8>;
 }
 
 #[repr(C)]
@@ -17,15 +18,18 @@ impl Pixel for RGBA8 {
     const CHANNELS: u32 = 4;
 }
 
-impl SRGBPixel for RGBA8 {
+impl SRGBAPixel for RGBA8 {
+    fn srgba(&self) -> Vec<u8> {
+        vec![self.r, self.g, self.b, self.a]
+    }
 }
 
 pub struct Bitmap<P> {
-    width: u32,
-    height: u32,
+    pub width: u32,
+    pub height: u32,
     /// num of pixels for a row
-    stride: u32,
-    pixels: Vec<P>,
+    pub stride: u32,
+    pub pixels: Vec<P>,
 }
 
 impl<P: Pixel> Bitmap<P> {

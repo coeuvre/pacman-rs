@@ -52,7 +52,17 @@ impl Renderer {
         })
     }
 
-    pub fn load_texture<P: SRGBPixel>(&mut self, bitmap: &Bitmap<P>) -> Texture {
+    pub fn load_texture<P: SRGBAPixel>(&mut self, bitmap: &Bitmap<P>) -> Texture {
+        let mut pixels = bitmap.pixels.chunks(bitmap.stride as usize).map(|row| {
+            row.into_iter().take(bitmap.width as usize).map(|pixel| {
+                pixel.srgba()
+            }).flatten().collect::<Vec<u8>>()
+        }).collect::<Vec<Vec<u8>>>();
+
+        pixels.reverse();
+
+        let bytes = pixels.into_iter().flatten().collect::<Vec<u8>>();
+
         unimplemented!()
     }
 }
