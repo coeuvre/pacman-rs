@@ -21,6 +21,7 @@ pub struct SRGBA8 {
 #[derive(Clone)]
 pub enum Pixels {
     SRGBA8(Vec<SRGBA8>),
+    A8(Vec<u8>)
 }
 
 #[derive(Clone)]
@@ -66,5 +67,17 @@ impl Bitmap {
             stride: width as u32,
             pixels: Pixels::SRGBA8(srgba8),
         })
+    }
+
+    pub fn from_glyph(bitmap: &freetype::Bitmap) -> Bitmap {
+        assert_eq!(bitmap.pixel_mode(), Ok(freetype::bitmap::PixelMode::Gray));
+        assert_eq!(bitmap.width(), bitmap.pitch());
+
+        Bitmap {
+            width: bitmap.width() as u32,
+            height: bitmap.rows() as u32,
+            stride: bitmap.width() as u32,
+            pixels: Pixels::A8(Vec::from(bitmap.buffer())),
+        }
     }
 }

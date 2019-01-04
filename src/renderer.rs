@@ -1,7 +1,8 @@
 use std::{
     mem::*,
     ffi::*,
-    ptr::*
+    ptr::*,
+    rc::Rc,
 };
 use failure::{Error, format_err};
 use gl::types::*;
@@ -11,9 +12,19 @@ use crate::bitmap::*;
 
 #[derive(Clone)]
 pub struct Texture {
-    pub handle: GLuint,
+    handle: Rc<TextureHandle>,
     pub width: u32,
     pub height: u32,
+}
+
+struct TextureHandle {
+    id: GLuint
+}
+
+impl Drop for TextureHandle {
+    fn drop(&mut self) {
+        unsafe { gl::DeleteTextures(1, &mut self.id); }
+    }
 }
 
 pub struct TexturedRect2 {
@@ -73,6 +84,19 @@ impl Renderer {
                     }).flatten().collect::<Vec<u8>>()
                 }).collect::<Vec<Vec<u8>>>()
             }
+            Pixels::A8(ref pixels) => {
+                pixels.chunks(bitmap.stride as usize).map(|row| {
+                    row.into_iter().map(|&a| {
+                        let af = a as f32 / 255.0;
+                        // Premultiply alpha
+                        let plc = Vec4::new(1.0 * af, 1.0 * af, 1.0 * af, af);
+                        // lRGB to sRGB
+                        let pscf = Vec4::new(plc.x.powf(INV_GAMMA), plc.y.powf(INV_GAMMA), plc.z.powf(INV_GAMMA), plc.w);
+                        let psc = pscf * 255.0;
+                        vec![psc.x.round() as u8, psc.y.round() as u8, psc.z.round() as u8, psc.w.round() as u8]
+                    }).flatten().collect::<Vec<u8>>()
+                }).collect::<Vec<Vec<u8>>>()
+            }
         };
 
         // Flip bitmap
@@ -95,7 +119,7 @@ impl Renderer {
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
 
             Texture {
-                handle: texture_id,
+                handle: Rc::new(TextureHandle { id: texture_id }),
                 width: bitmap.width,
                 height: bitmap.height,
             }
@@ -107,6 +131,11 @@ impl Renderer {
     }
 
     pub fn render(&mut self, buffer: &[RenderCommand]) {
+        unsafe {
+            gl::Viewport(0, 0, self.viewport_size.x as i32, self.viewport_size.y as i32);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
+        }
+
         for command in buffer.iter() {
             match command {
                 RenderCommand::RenderTexturedRect2(textured_rect2) => {
@@ -244,14 +273,14 @@ impl RenderTexturedRect2Program {
             return
         }
 
-        let texture_id = data_array[0].texture.handle;
+        let texture_id = data_array[0].texture.handle.id;
         let inv_viewport_size = 1.0 / viewport_size;
 
         let mut vertices = Vec::new();
         let mut indices = Vec::<GLuint>::new();
         for data in data_array {
             let ref texture = data.texture;
-            assert_eq!(texture_id, texture.handle);
+            assert_eq!(texture_id, texture.handle.id);
 
             let dst_rect_size = data.dst.size();
             let dst_rect_min = Vec2::new(data.dst.min.x, viewport_size.y - data.dst.min.y - dst_rect_size.y);
