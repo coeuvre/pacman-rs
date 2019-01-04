@@ -12,20 +12,20 @@ use crate::bitmap::*;
 
 #[derive(Clone)]
 pub struct Texture {
-    handle: GLuint,
-    width: u32,
-    height: u32,
+    pub handle: GLuint,
+    pub width: u32,
+    pub height: u32,
 }
 
 pub struct TexturedRect2 {
-    texture: Texture,
-    src: Rect2,
-    dst: Rect2,
+    pub texture: Texture,
+    pub src: Rect2,
+    pub dst: Rect2,
 }
 
 pub struct Renderer {
-    viewport_size: Vec2,
-    render_textured_rect2_program: RenderTexturedRect2Program
+    pub viewport_size: Vec2,
+    pub render_textured_rect2_program: RenderTexturedRect2Program
 }
 
 impl Renderer {
@@ -52,18 +52,58 @@ impl Renderer {
         })
     }
 
-    pub fn load_texture<P: SRGBAPixel>(&mut self, bitmap: &Bitmap<P>) -> Texture {
-        let mut pixels = bitmap.pixels.chunks(bitmap.stride as usize).map(|row| {
-            row.into_iter().take(bitmap.width as usize).map(|pixel| {
-                pixel.srgba()
-            }).flatten().collect::<Vec<u8>>()
-        }).collect::<Vec<Vec<u8>>>();
+    pub fn load_texture(&mut self, bitmap: &Bitmap) -> Texture {
+        const GAMMA: f32 = 2.2;
+        const INV_GAMMA: f32 = 1.0 / GAMMA;
 
+        let mut pixels = match bitmap.pixels {
+            Pixels::SRGBA8(ref pixels) => {
+                pixels.chunks(bitmap.stride as usize).map(|row| {
+                    row.into_iter().take(bitmap.width as usize).map(|pixel| {
+                        let sc = pixel;
+                        let scf = Vec4::new(sc.r as f32, sc.g as f32, sc.b as f32, sc.a as f32) / 255.0;
+                        // sRGB to lRGB
+                        let lc = Vec4::new(scf.x.powf(GAMMA), scf.y.powf(GAMMA), scf.z.powf(GAMMA), scf.w);
+                        // Premultiply alpha
+                        let plc = Vec4::from_xyz(lc.xyz() * lc.w, lc.w);
+                        // lRGB to sRGB
+                        let pscf = Vec4::new(plc.x.powf(INV_GAMMA), plc.y.powf(INV_GAMMA), plc.z.powf(INV_GAMMA), plc.w);
+                        let psc = pscf * 255.0;
+                        vec![psc.x.round() as u8, psc.y.round() as u8, psc.z.round() as u8, psc.w.round() as u8]
+                    }).flatten().collect::<Vec<u8>>()
+                }).collect::<Vec<Vec<u8>>>()
+            }
+        };
+
+        // Flip bitmap
         pixels.reverse();
 
         let bytes = pixels.into_iter().flatten().collect::<Vec<u8>>();
 
-        unimplemented!()
+        unsafe {
+            let mut texture_id = zeroed();
+            gl::GenTextures(1, &mut texture_id);
+            gl::BindTexture(gl::TEXTURE_2D, texture_id);
+            gl::TexImage2D(
+                gl::TEXTURE_2D, 0, gl::SRGB8_ALPHA8 as i32,
+                bitmap.width as i32, bitmap.height as i32, 0,
+                gl::RGBA, gl::UNSIGNED_BYTE, bytes.as_ptr() as *const _,
+            );
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
+
+            Texture {
+                handle: texture_id,
+                width: bitmap.width,
+                height: bitmap.height,
+            }
+        }
+    }
+
+    pub fn set_viewport_size(&mut self, viewport_size: Vec2) {
+        self.viewport_size = viewport_size;
     }
 }
 
@@ -82,7 +122,7 @@ struct RenderTexturedRect2VertexAttrib {
     color: [GLfloat; 4],
 }
 
-struct RenderTexturedRect2Program {
+pub struct RenderTexturedRect2Program {
     program: Program,
     vao: GLuint,
     vbo: GLuint,

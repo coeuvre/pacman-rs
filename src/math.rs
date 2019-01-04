@@ -61,3 +61,66 @@ impl Rect2 {
         self.max - self.min
     }
 }
+
+#[derive(Clone, Copy)]
+pub struct Vec3 {
+    pub x: Scalar,
+    pub y: Scalar,
+    pub z: Scalar,
+}
+
+impl Vec3 {
+    #[inline]
+    pub fn new(x: Scalar, y: Scalar, z: Scalar) -> Vec3 {
+        Vec3 { x, y, z }
+    }
+}
+
+impl Mul<Scalar> for Vec3 {
+    type Output = Vec3;
+
+    fn mul(self, rhs: f32) -> Vec3 {
+        Vec3::new(self.x * rhs, self.y * rhs, self.z * rhs)
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct Vec4 {
+    pub x: Scalar,
+    pub y: Scalar,
+    pub z: Scalar,
+    pub w: Scalar,
+}
+
+impl Vec4 {
+    #[inline]
+    pub fn new(x: Scalar, y: Scalar, z: Scalar, w: Scalar) -> Vec4 {
+        Vec4 { x, y, z, w }
+    }
+
+    #[inline]
+    pub fn from_xyz(xyz: Vec3, w: Scalar) -> Vec4 {
+        Vec4::new(xyz.x, xyz.y, xyz.z, w)
+    }
+
+    #[inline]
+    pub fn xyz(&self) -> Vec3 {
+        Vec3::new(self.x, self.y, self.z)
+    }
+}
+
+impl Div<Scalar> for Vec4 {
+    type Output = Vec4;
+
+    fn div(self, rhs: f32) -> Vec4 {
+        Vec4::new(self.x / rhs, self.y / rhs, self.z / rhs, self.w / rhs)
+    }
+}
+
+impl Mul<Scalar> for Vec4 {
+    type Output = Vec4;
+
+    fn mul(self, rhs: f32) -> Vec4 {
+        Vec4::new(self.x * rhs, self.y * rhs, self.z * rhs, self.w * rhs)
+    }
+}
