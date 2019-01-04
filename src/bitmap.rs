@@ -18,10 +18,12 @@ pub struct SRGBA8 {
     pub a: u8,
 }
 
+#[derive(Clone)]
 pub enum Pixels {
     SRGBA8(Vec<SRGBA8>),
 }
 
+#[derive(Clone)]
 pub struct Bitmap {
     pub width: u32,
     pub height: u32,

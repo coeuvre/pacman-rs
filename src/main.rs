@@ -16,10 +16,11 @@ pub mod asset;
 pub mod renderer;
 pub mod math;
 pub mod bitmap;
+pub mod game;
 
 use crate::renderer::*;
-use crate::bitmap::*;
 use crate::math::*;
+use crate::game::*;
 
 fn main() -> Result<(), Error> {
     unsafe { sdl_main() }
@@ -78,12 +79,10 @@ unsafe fn sdl_main() -> Result<(), Error> {
 
 unsafe fn run_sdl_game_loop(window: *mut SDL_Window) -> Result<(), Error> {
     let mut renderer = Renderer::new(load_gl_fn)?;
-
-    let bitmap = Bitmap::from_url("assets://test.png")?;
-    let texture = renderer.load_texture(&bitmap);
+    let mut game_state = GameState::new(&mut renderer)?;
 
     'game: loop {
-        let mut event = uninitialized::<SDL_Event>();
+        let mut event = zeroed::<SDL_Event>();
         while SDL_PollEvent(&mut event) != 0 {
             match transmute::<_, SDL_EventType>(event.type_) {
                 SDL_QUIT => {
@@ -98,14 +97,7 @@ unsafe fn run_sdl_game_loop(window: *mut SDL_Window) -> Result<(), Error> {
         SDL_GetWindowSize(window, &mut window_width, &mut window_height);
         renderer.set_viewport_size(Vec2::new(window_width as Scalar, window_height as Scalar));
 
-        let data = vec![
-            TexturedRect2 {
-                texture: texture.clone(),
-                src: Rect2 { min: Vec2::new(0.0, 0.0), max: Vec2::new(texture.width as Scalar, texture.height as Scalar) },
-                dst: Rect2 { min: Vec2::new(10.0, 10.0), max: Vec2::new(100.0, 100.0) },
-            }
-        ];
-        renderer.render_textured_rect2_program.render(renderer.viewport_size, &data);
+        game_state.update(&mut renderer);
 
         SDL_GL_SwapWindow(window);
     }

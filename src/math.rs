@@ -41,6 +41,14 @@ impl Div<Vec2> for Scalar {
     }
 }
 
+impl Add<Vec2> for Vec2 {
+    type Output = Vec2;
+
+    fn add(self, rhs: Vec2) -> Vec2 {
+        Vec2::new(self.x + rhs.x, self.y + rhs.y)
+    }
+}
+
 impl Sub<Vec2> for Vec2 {
     type Output = Vec2;
 
@@ -56,6 +64,22 @@ pub struct Rect2 {
 }
 
 impl Rect2 {
+    #[inline]
+    pub fn with_min_max(min: Vec2, max: Vec2) -> Rect2 {
+        Rect2 {
+            min,
+            max,
+        }
+    }
+
+    #[inline]
+    pub fn with_min_size(min: Vec2, size: Vec2) -> Rect2 {
+        Rect2 {
+            min,
+            max: min + size,
+        }
+    }
+
     #[inline]
     pub fn size(&self) -> Vec2 {
         self.max - self.min

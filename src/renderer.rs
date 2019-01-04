@@ -1,7 +1,6 @@
 use std::{
     mem::*,
     ffi::*,
-    os::raw::*,
     ptr::*
 };
 use failure::{Error, format_err};
@@ -23,9 +22,13 @@ pub struct TexturedRect2 {
     pub dst: Rect2,
 }
 
+pub enum RenderCommand {
+    RenderTexturedRect2(TexturedRect2),
+}
+
 pub struct Renderer {
-    pub viewport_size: Vec2,
-    pub render_textured_rect2_program: RenderTexturedRect2Program
+    viewport_size: Vec2,
+    render_textured_rect2_program: RenderTexturedRect2Program
 }
 
 impl Renderer {
@@ -33,9 +36,6 @@ impl Renderer {
         gl::load_with(load_fn);
 
         unsafe {
-            let version = gl::GetString(gl::VERSION);
-            println!("OpenGL version: {}", CStr::from_ptr(version as *const c_char).to_string_lossy());
-
             gl::ClearColor(0.0, 0.0, 0.0, 0.0);
             gl::Enable(gl::TEXTURE_2D);
             gl::Enable(gl::FRAMEBUFFER_SRGB);
@@ -104,6 +104,17 @@ impl Renderer {
 
     pub fn set_viewport_size(&mut self, viewport_size: Vec2) {
         self.viewport_size = viewport_size;
+    }
+
+    pub fn render(&mut self, buffer: &[RenderCommand]) {
+        for command in buffer.iter() {
+            match command {
+                RenderCommand::RenderTexturedRect2(textured_rect2) => {
+                    let data = [textured_rect2];
+                    self.render_textured_rect2_program.render(self.viewport_size, &data);
+                }
+            }
+        }
     }
 }
 
@@ -228,7 +239,7 @@ impl RenderTexturedRect2Program {
         })
     }
 
-    pub fn render(&mut self, viewport_size: Vec2, data_array: &[TexturedRect2]) {
+    pub fn render(&mut self, viewport_size: Vec2, data_array: &[&TexturedRect2]) {
         if data_array.is_empty() {
             return
         }
@@ -297,7 +308,7 @@ impl RenderTexturedRect2Program {
             gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
             gl::BufferData(
                 gl::ARRAY_BUFFER,
-                (size_of_val(vertices.get(0).unwrap()) * vertices.len()) as isize,
+                (size_of_val(vertices.get_unchecked(0)) * vertices.len()) as isize,
                 vertices.as_ptr() as *const _,
                 gl::DYNAMIC_DRAW,
             );
@@ -305,7 +316,7 @@ impl RenderTexturedRect2Program {
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.ebo);
             gl::BufferData(
                 gl::ELEMENT_ARRAY_BUFFER,
-                (size_of_val(indices.get(0).unwrap()) * indices.len()) as isize,
+                (size_of_val(indices.get_unchecked(0)) * indices.len()) as isize,
                 indices.as_ptr() as *const _,
                 gl::DYNAMIC_DRAW,
             );
