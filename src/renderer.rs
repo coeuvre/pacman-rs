@@ -23,7 +23,7 @@ struct TextureHandle {
 
 impl Drop for TextureHandle {
     fn drop(&mut self) {
-        unsafe { gl::DeleteTextures(1, &mut self.id); }
+        unsafe { gl::DeleteTextures(1, &self.id); }
     }
 }
 
@@ -43,7 +43,7 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn new<F>(load_fn: F) -> Result<Renderer, Error> where F: FnMut(&str) -> *const c_void  {
+    pub fn load<F>(load_fn: F) -> Result<Self, Error> where F: FnMut(&str) -> *const c_void  {
         gl::load_with(load_fn);
 
         unsafe {
@@ -59,7 +59,7 @@ impl Renderer {
 
         Ok(Renderer {
             viewport_size: Vec2::zero(),
-            render_textured_rect2_program: RenderTexturedRect2Program::new()?
+            render_textured_rect2_program: RenderTexturedRect2Program::load()?
         })
     }
 
@@ -72,7 +72,7 @@ impl Renderer {
                 pixels.chunks(bitmap.stride as usize).map(|row| {
                     row.into_iter().take(bitmap.width as usize).map(|pixel| {
                         let sc = pixel;
-                        let scf = Vec4::new(sc.r as f32, sc.g as f32, sc.b as f32, sc.a as f32) / 255.0;
+                        let scf = Vec4::new(f32::from(sc.r), f32::from(sc.g), f32::from(sc.b), f32::from(sc.a)) / 255.0;
                         // sRGB to lRGB
                         let lc = Vec4::new(scf.x.powf(GAMMA), scf.y.powf(GAMMA), scf.z.powf(GAMMA), scf.w);
                         // Premultiply alpha
@@ -87,7 +87,7 @@ impl Renderer {
             Pixels::A8(ref pixels) => {
                 pixels.chunks(bitmap.stride as usize).map(|row| {
                     row.into_iter().map(|&a| {
-                        let af = a as f32 / 255.0;
+                        let af = f32::from(a) / 255.0;
                         // Premultiply alpha
                         let plc = Vec4::new(1.0 * af, 1.0 * af, 1.0 * af, af);
                         // lRGB to sRGB
@@ -149,7 +149,7 @@ impl Renderer {
 
 macro_rules! offset_of {
     ($ty:ty, $field:tt) => ({
-        let base = 0 as *const $ty;
+        let base = std::ptr::null::<$ty>();
         let field = &(*base).$field as *const _;
         field as usize - base as usize
     });
@@ -205,7 +205,7 @@ void main()
 "#;
 
 impl RenderTexturedRect2Program {
-    pub fn new() -> Result<RenderTexturedRect2Program, Error> {
+    pub fn load() -> Result<RenderTexturedRect2Program, Error> {
         let mut program = Program::new();
         let mut vs = Shader::new(gl::VERTEX_SHADER);
         vs.compile(RENDER_TEXTURED_RECT2_VERTEX_SHADER)?;
@@ -279,7 +279,7 @@ impl RenderTexturedRect2Program {
         let mut vertices = Vec::new();
         let mut indices = Vec::<GLuint>::new();
         for data in data_array {
-            let ref texture = data.texture;
+            let texture = &data.texture;
             assert_eq!(texture_id, texture.handle.id);
 
             let dst_rect_size = data.dst.size();
@@ -325,10 +325,10 @@ impl RenderTexturedRect2Program {
                 color: [1.0, 1.0, 1.0, 1.0],
             });
 
-            indices.push(vertex_index + 0);
+            indices.push(vertex_index);
             indices.push(vertex_index + 1);
             indices.push(vertex_index + 2);
-            indices.push(vertex_index + 0);
+            indices.push(vertex_index);
             indices.push(vertex_index + 2);
             indices.push(vertex_index + 3);
         }
@@ -380,7 +380,7 @@ impl Shader {
 
             let mut success = 0;
             gl::GetShaderiv(self.id, gl::COMPILE_STATUS, &mut success);
-            if success != gl::TRUE as i32 {
+            if success as u8 != gl::TRUE {
                 let mut buffer = Vec::with_capacity(512);
                 gl::GetShaderInfoLog(self.id, buffer.len() as i32, null_mut(), buffer.as_mut_ptr() as *mut i8);
                 Err(format_err!("{}", CString::new(buffer).unwrap().to_string_lossy()))
@@ -421,7 +421,7 @@ impl Program {
 
             let mut success = 0;
             gl::GetProgramiv(self.id, gl::LINK_STATUS, &mut success);
-            if success != gl::TRUE as i32 {
+            if success as u8 != gl::TRUE {
                 let mut buffer = Vec::with_capacity(512);
                 gl::GetProgramInfoLog(self.id, buffer.len() as i32, null_mut(), buffer.as_mut_ptr() as *mut i8);
                 Err(format_err!("{}", CString::new(buffer).unwrap().to_string_lossy()))

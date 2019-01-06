@@ -1,6 +1,5 @@
 use std::{
     ffi::*,
-    ptr::*,
     mem::*,
 };
 use failure::{Error, format_err};
@@ -56,17 +55,17 @@ unsafe fn sdl_main() -> Result<(), Error> {
     let title = CString::new("PacMan").unwrap();
     let window = SDL_CreateWindow(
         title.as_ptr(),
-        (SDL_WINDOWPOS_CENTERED_MASK | 0) as i32,
-        (SDL_WINDOWPOS_CENTERED_MASK | 0) as i32,
+        SDL_WINDOWPOS_CENTERED_MASK as i32,
+        SDL_WINDOWPOS_CENTERED_MASK as i32,
         WINDOW_WIDTH, WINDOW_HEIGHT,
         SDL_WINDOW_SHOWN as u32 | SDL_WINDOW_RESIZABLE as u32 | SDL_WINDOW_OPENGL as u32
     );
-    if window == null_mut() {
+    if window.is_null() {
         return sdl_error!();
     }
 
     let gl_context = SDL_GL_CreateContext(window);
-    if gl_context == null_mut() {
+    if gl_context.is_null() {
         return sdl_error!();
     }
 
@@ -78,8 +77,8 @@ unsafe fn sdl_main() -> Result<(), Error> {
 }
 
 unsafe fn run_sdl_game_loop(window: *mut SDL_Window) -> Result<(), Error> {
-    let mut renderer = Renderer::new(load_gl_fn)?;
-    let mut game_state = GameState::new(&mut renderer)?;
+    let mut renderer = Renderer::load(load_gl_fn)?;
+    let mut game_state = GameState::load(&mut renderer)?;
 
     'game: loop {
         let mut event = zeroed::<SDL_Event>();

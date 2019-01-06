@@ -20,7 +20,7 @@ impl Vec2 {
     }
 
     #[inline]
-    pub fn hadamard(&self, rhs: Vec2) -> Vec2 {
+    pub fn hadamard(self, rhs: Vec2) -> Vec2 {
         Vec2::new(self.x * rhs.x, self.y * rhs.y)
     }
 }

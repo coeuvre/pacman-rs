@@ -47,7 +47,7 @@ impl Bitmap {
             if data.is_null() {
                 return Err(format_err!("{}", CStr::from_ptr(stbi_failure_reason()).to_string_lossy()));
             }
-            let srgba8 = slice::from_raw_parts(data, (width * height * 4) as usize).chunks(4).into_iter().map(|chunk| {
+            let srgba8 = slice::from_raw_parts(data, (width * height * 4) as usize).chunks(4).map(|chunk| {
                 SRGBA8 {
                     r: *chunk.get_unchecked(0),
                     g: *chunk.get_unchecked(1),
