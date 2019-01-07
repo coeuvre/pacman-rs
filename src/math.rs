@@ -3,6 +3,23 @@ use std::ops::*;
 pub type Scalar = f32;
 
 #[derive(Clone, Copy)]
+pub struct Vec2i {
+    pub x: i32,
+    pub y: i32,
+}
+
+impl Vec2i {
+    #[inline]
+    pub fn new(x: i32, y: i32) -> Vec2i {
+        Vec2i { x, y }
+    }
+
+    pub fn as_vec2(self) -> Vec2 {
+        Vec2::new(self.x as Scalar, self.y as Scalar)
+    }
+}
+
+#[derive(Clone, Copy)]
 pub struct Vec2 {
     pub x: Scalar,
     pub y: Scalar,

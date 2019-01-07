@@ -11,24 +11,31 @@ use crate::math::*;
 use crate::bitmap::*;
 
 #[derive(Clone)]
-pub struct Texture {
-    handle: Rc<TextureHandle>,
-    pub width: u32,
-    pub height: u32,
+pub struct TextureHandle {
+    inner: Rc<OpenGLTexture>,
 }
 
-struct TextureHandle {
-    id: GLuint
+impl TextureHandle {
+    #[inline]
+    pub fn size(&self) -> Vec2i {
+        Vec2i::new(self.inner.width as i32, self.inner.height as i32)
+    }
 }
 
-impl Drop for TextureHandle {
+struct OpenGLTexture {
+    id: GLuint,
+    width: i32,
+    height: i32,
+}
+
+impl Drop for OpenGLTexture {
     fn drop(&mut self) {
         unsafe { gl::DeleteTextures(1, &self.id); }
     }
 }
 
 pub struct TexturedRect2 {
-    pub texture: Texture,
+    pub texture: TextureHandle,
     pub src: Rect2,
     pub dst: Rect2,
 }
@@ -63,7 +70,7 @@ impl Renderer {
         })
     }
 
-    pub fn load_texture(&mut self, bitmap: &Bitmap) -> Texture {
+    pub fn load_texture(&mut self, bitmap: &Bitmap) -> TextureHandle {
         const GAMMA: f32 = 2.2;
         const INV_GAMMA: f32 = 1.0 / GAMMA;
 
@@ -118,10 +125,12 @@ impl Renderer {
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
 
-            Texture {
-                handle: Rc::new(TextureHandle { id: texture_id }),
-                width: bitmap.width,
-                height: bitmap.height,
+            TextureHandle {
+                inner: Rc::new(OpenGLTexture {
+                    id: texture_id,
+                    width: bitmap.width,
+                    height: bitmap.height,
+                })
             }
         }
     }
@@ -273,14 +282,14 @@ impl RenderTexturedRect2Program {
             return
         }
 
-        let texture_id = data_array[0].texture.handle.id;
+        let texture_id = data_array[0].texture.inner.id;
         let inv_viewport_size = 1.0 / viewport_size;
 
         let mut vertices = Vec::new();
         let mut indices = Vec::<GLuint>::new();
         for data in data_array {
             let texture = &data.texture;
-            assert_eq!(texture_id, texture.handle.id);
+            assert_eq!(texture_id, texture.inner.id);
 
             let dst_rect_size = data.dst.size();
             let dst_rect_min = Vec2::new(data.dst.min.x, viewport_size.y - data.dst.min.y - dst_rect_size.y);
@@ -289,9 +298,10 @@ impl RenderTexturedRect2Program {
             let max = dst_rect_max.hadamard(inv_viewport_size) * 2.0 - Vec2::new(1.0, 1.0);
 
             let src_rect_size = data.src.size();
-            let src_rect_min = Vec2::new(data.src.min.x, texture.height as f32 - data.src.min.y - src_rect_size.y);
-            let src_rect_max = Vec2::new(data.src.max.x, texture.height as f32 - data.src.min.y);
-            let inv_texture_size = 1.0 / Vec2::new(texture.width as Scalar, texture.height as Scalar);
+            let texture_size = texture.size().as_vec2();
+            let inv_texture_size = 1.0 / texture_size;
+            let src_rect_min = Vec2::new(data.src.min.x, texture_size.y - data.src.min.y - src_rect_size.y);
+            let src_rect_max = Vec2::new(data.src.max.x, texture_size.y - data.src.min.y);
             let tex_min = src_rect_min.hadamard(inv_texture_size);
             let tex_max = src_rect_max.hadamard(inv_texture_size);
 

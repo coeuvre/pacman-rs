@@ -26,10 +26,10 @@ pub enum Pixels {
 
 #[derive(Clone)]
 pub struct Bitmap {
-    pub width: u32,
-    pub height: u32,
+    pub width: i32,
+    pub height: i32,
     /// num of pixels for a row
-    pub stride: u32,
+    pub stride: i32,
     pub pixels: Pixels,
 }
 
@@ -62,9 +62,9 @@ impl Bitmap {
         };
 
         Ok(Bitmap {
-            width: width as u32,
-            height: height as u32,
-            stride: width as u32,
+            width,
+            height,
+            stride: width,
             pixels: Pixels::SRGBA8(srgba8),
         })
     }
@@ -74,9 +74,9 @@ impl Bitmap {
         assert_eq!(bitmap.width(), bitmap.pitch());
 
         Bitmap {
-            width: bitmap.width() as u32,
-            height: bitmap.rows() as u32,
-            stride: bitmap.width() as u32,
+            width: bitmap.width(),
+            height: bitmap.rows(),
+            stride: bitmap.width(),
             pixels: Pixels::A8(Vec::from(bitmap.buffer())),
         }
     }
