@@ -139,7 +139,7 @@ impl Renderer {
         self.viewport_size = viewport_size;
     }
 
-    pub fn render(&mut self, buffer: &[RenderCommand]) {
+    pub fn do_render_command(&mut self, buffer: &[RenderCommand]) {
         unsafe {
             gl::Viewport(0, 0, self.viewport_size.x as i32, self.viewport_size.y as i32);
             gl::Clear(gl::COLOR_BUFFER_BIT);

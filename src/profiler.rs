@@ -101,9 +101,8 @@ pub struct Frame {
 
 fn root_block(frequency: u64, current_counter: u64) -> Block {
     Block {
-        file: "".to_string(),
+        file: "",
         line: 0,
-        func: "".to_string(),
         name: "".to_string(),
         frequency,
         begin: current_counter,
@@ -156,15 +155,14 @@ impl Frame {
         self.block_tree.as_ref().unwrap().dfs_iter()
     }
 
-    pub fn open_block(&mut self) {
+    pub fn open_block<N>(&mut self, file: &'static str, line: u32, name: N) where N: Into<String> {
         let block_tree = self.block_tree.as_mut().unwrap();
 
         let current_counter = get_performance_counter();
         let new_block = Block {
-            file: "".to_string(),
-            line: 0,
-            func: "".to_string(),
-            name: "".to_string(),
+            file,
+            line,
+            name: name.into(),
             frequency: self.frequency,
             begin: current_counter,
             end: current_counter,
@@ -183,17 +181,44 @@ impl Frame {
 
 #[derive(Clone)]
 pub struct Block {
-    pub file: String,
-    pub line: u32,
-    pub func: String,
-    pub name: String,
-    pub frequency: u64,
-    pub begin: u64,
-    pub end: u64,
+    file: &'static str,
+    line: u32,
+    name: String,
+    frequency: u64,
+    begin: u64,
+    end: u64,
 }
 
 impl Block {
     pub fn delta(&self) -> f32 {
         (self.end - self.begin) as f32 / self.frequency as f32
+    }
+
+    pub fn file(&self) -> &str {
+        self.file
+    }
+
+    pub fn line(&self) -> u32 {
+        self.line
+    }
+
+    pub fn name(&self) -> &str {
+        self.name.as_ref()
+    }
+}
+
+macro_rules! profile_block {
+    ($block:block) => {
+        profile_block!("", $block);
+    };
+
+    ($name:ident, $block:block) => {
+        profile_block!(stringify!($name), $block);
+    };
+
+    ($name:expr, $block:block) => {
+        PROFILER.lock().unwrap().current_frame_mut().unwrap().open_block(file!(), line!(), $name);
+        $block;
+        PROFILER.lock().unwrap().current_frame_mut().unwrap().close_block();
     }
 }

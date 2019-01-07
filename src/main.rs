@@ -11,12 +11,13 @@ use sdl2_sys::{
     SDL_EventType::*,
 };
 
+#[macro_use]
+pub mod profiler;
 pub mod asset;
 pub mod renderer;
 pub mod math;
 pub mod bitmap;
 pub mod game;
-pub mod profiler;
 pub mod tree;
 
 use crate::renderer::*;
@@ -86,6 +87,7 @@ unsafe fn run_sdl_game_loop(window: *mut SDL_Window) -> Result<(), Error> {
     let input = Input {
         dt: 0.016,
     };
+    let mut render_command_buffer = Vec::new();
 
     let frequency = get_performance_frequency();
     let counter_per_frame = (input.dt as f64 * frequency as f64) as u64;
@@ -93,8 +95,7 @@ unsafe fn run_sdl_game_loop(window: *mut SDL_Window) -> Result<(), Error> {
     'game: loop {
         PROFILER.lock().unwrap().begin_frame();
 
-        {
-            PROFILER.lock().unwrap().current_frame_mut().unwrap().open_block();
+        profile_block!(poll_event, {
             let mut event = zeroed::<SDL_Event>();
             while SDL_PollEvent(&mut event) != 0 {
                 match transmute::<_, SDL_EventType>(event.type_) {
@@ -104,33 +105,28 @@ unsafe fn run_sdl_game_loop(window: *mut SDL_Window) -> Result<(), Error> {
                     _ => {}
                 }
             }
-            PROFILER.lock().unwrap().current_frame_mut().unwrap().close_block();
-        }
+        });
 
-        {
-            PROFILER.lock().unwrap().current_frame_mut().unwrap().open_block();
-
+        profile_block!(update, {
             let mut window_width = 0;
             let mut window_height = 0;
             SDL_GetWindowSize(window, &mut window_width, &mut window_height);
             renderer.set_viewport_size(Vec2::new(window_width as Scalar, window_height as Scalar));
 
-            game_state.update(&input, &mut renderer);
+            render_command_buffer.clear();
+            game_state.update(&input, &mut renderer, &mut render_command_buffer);
 
-            PROFILER.lock().unwrap().current_frame_mut().unwrap().close_block();
-        }
+            profile_block!(do_render_command, {
+                renderer.do_render_command(&render_command_buffer);
+            });
+        });
 
-        {
-            PROFILER.lock().unwrap().current_frame_mut().unwrap().open_block();
-
-            {
-                PROFILER.lock().unwrap().current_frame_mut().unwrap().open_block();
+        profile_block!(wait, {
+            profile_block!(vsync, {
                 SDL_GL_SwapWindow(window);
-                PROFILER.lock().unwrap().current_frame_mut().unwrap().close_block();
-            }
+            });
 
-            {
-                PROFILER.lock().unwrap().current_frame_mut().unwrap().open_block();
+            profile_block!(sleep, {
                 let current_counter = get_performance_counter();
                 let last_counter = PROFILER.lock().unwrap().current_frame().unwrap().begin_counter();
                 let frame_delta_counter = current_counter - last_counter;
@@ -140,11 +136,8 @@ unsafe fn run_sdl_game_loop(window: *mut SDL_Window) -> Result<(), Error> {
                         SDL_Delay(sleep_ms);
                     }
                 }
-                PROFILER.lock().unwrap().current_frame_mut().unwrap().close_block();
-            }
-
-            PROFILER.lock().unwrap().current_frame_mut().unwrap().close_block();
-        }
+            });
+        });
 
         PROFILER.lock().unwrap().end_frame();
     }
