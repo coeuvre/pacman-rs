@@ -27,11 +27,6 @@ pub struct GlyphKey {
     ch: usize,
 }
 
-pub struct SubTexture {
-    texture: TextureHandle,
-    region: Rect2,
-}
-
 pub struct Glyph {
     offset: Vec2,
     advance: Vec2,
@@ -133,6 +128,13 @@ impl GameState {
 //            }));
 //        }
 
+        buffer.push(RenderCommand::RenderQuad(Quad {
+            texture: None,
+            src: Rect2::with_min_size(Vec2::zero(), Vec2::zero()),
+            dst: Rect2::with_min_size(Vec2::zero(), Vec2::new(500.0, 500.0)),
+            color: Vec4::new(1.0, 1.0, 1.0, 1.0),
+        }));
+
         let font_pixel_size = 16;
         let pos = Vec2::new(10.0, 20.0);
 
@@ -183,10 +185,11 @@ where
     for ch in text.as_ref().chars() {
         if let Some(glyph) = face.get_or_load_glyph(renderer, font_pixel_size, ch as usize) {
             if let Some(ref sub_texture) = glyph.sub_texture {
-                buffer.push(RenderCommand::RenderTexturedRect2(TexturedRect2 {
+                buffer.push(RenderCommand::RenderQuad(Quad {
                     src: sub_texture.region,
-                    texture: sub_texture.texture.clone(),
+                    texture: Some(sub_texture.texture.clone()),
                     dst: Rect2::with_min_size(pen_pos + glyph.offset, sub_texture.texture.size().as_vec2()),
+                    color: Vec4::new(1.0, 0.0, 0.0, 1.0),
                 }));
             }
 

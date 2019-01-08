@@ -12,6 +12,14 @@ use sdl2_sys::{
 };
 use profiler::*;
 
+macro_rules! offset_of {
+    ($ty:ty, $field:tt) => ({
+        let base = std::ptr::null::<$ty>();
+        let field = &(*base).$field as *const _;
+        field as usize - base as usize
+    });
+}
+
 pub mod asset;
 pub mod renderer;
 pub mod math;
