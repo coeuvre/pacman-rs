@@ -1,7 +1,9 @@
 use std::sync::Mutex;
 use lazy_static::lazy_static;
 
-use crate::tree::*;
+use vectree::*;
+
+pub use profiler_macro::profile;
 
 pub fn get_performance_counter() -> u64 {
     unsafe { sdl2_sys::SDL_GetPerformanceCounter() }
@@ -207,6 +209,15 @@ impl Block {
     }
 }
 
+pub fn open_block<N>(file: &'static str, line: u32, name: N) where N: Into<String> {
+    PROFILER.lock().unwrap().current_frame_mut().unwrap().open_block(file, line, name);
+}
+
+pub fn close_block() {
+    PROFILER.lock().unwrap().current_frame_mut().unwrap().close_block();
+}
+
+#[macro_export]
 macro_rules! profile_block {
     ($block:block) => {
         profile_block!("", $block);
@@ -216,9 +227,11 @@ macro_rules! profile_block {
         profile_block!(stringify!($name), $block);
     };
 
-    ($name:expr, $block:block) => {
-        PROFILER.lock().unwrap().current_frame_mut().unwrap().open_block(file!(), line!(), $name);
-        $block;
-        PROFILER.lock().unwrap().current_frame_mut().unwrap().close_block();
-    }
+    ($name:expr, $block:block) => {{
+        use $crate::{open_block, close_block};
+        open_block(file!(), line!(), $name);
+        let result = $block;
+        close_block();
+        result
+    }}
 }

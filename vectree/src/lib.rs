@@ -152,7 +152,7 @@ impl<'a, T> NodeMut<'a, T> {
             }
         };
 
-         self.tree.nodes.push(new_node);
+        self.tree.nodes.push(new_node);
 
         new_id
     }

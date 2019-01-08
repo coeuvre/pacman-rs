@@ -10,20 +10,17 @@ use sdl2_sys::{
     SDL_WindowFlags::*,
     SDL_EventType::*,
 };
+use profiler::*;
 
-#[macro_use]
-pub mod profiler;
 pub mod asset;
 pub mod renderer;
 pub mod math;
 pub mod bitmap;
 pub mod game;
-pub mod tree;
 
 use crate::renderer::*;
 use crate::math::*;
 use crate::game::*;
-use crate::profiler::*;
 
 fn main() -> Result<(), Error> {
     unsafe { sdl_main() }
@@ -80,7 +77,49 @@ unsafe fn sdl_main() -> Result<(), Error> {
     run_sdl_game_loop(window)
 }
 
-unsafe fn run_sdl_game_loop(window: *mut SDL_Window) -> Result<(), Error> {
+#[profile]
+fn poll_event() -> bool {
+    let mut event = unsafe { zeroed::<SDL_Event>() };
+    while unsafe { SDL_PollEvent(&mut event) } != 0 {
+        match unsafe { transmute::<_, SDL_EventType>(event.type_) } {
+            SDL_QUIT => {
+                return true
+            }
+            _ => {}
+        }
+    }
+
+    false
+}
+
+#[profile]
+fn swap_buffer(window: *mut SDL_Window) {
+    unsafe { SDL_GL_SwapWindow(window); }
+}
+
+#[profile]
+fn sleep(counter_per_frame: u64, frequency: u64) {
+    let current_counter = get_performance_counter();
+    let last_counter = PROFILER.lock().unwrap().current_frame().unwrap().begin_counter();
+    let frame_delta_counter = current_counter - last_counter;
+    if frame_delta_counter < counter_per_frame {
+        let sleep_ms = ((counter_per_frame - frame_delta_counter) * 1000 / frequency) as u32;
+        if sleep_ms > 0 {
+            unsafe { SDL_Delay(sleep_ms); }
+        }
+    }
+}
+
+fn prepare_frame(window: *mut SDL_Window, renderer: &mut Renderer, render_command_buffer: &mut Vec<RenderCommand>) {
+    let mut window_width = 0;
+    let mut window_height = 0;
+    unsafe { SDL_GetWindowSize(window, &mut window_width, &mut window_height); }
+    renderer.set_viewport_size(Vec2::new(window_width as Scalar, window_height as Scalar));
+
+    render_command_buffer.clear();
+}
+
+fn run_sdl_game_loop(window: *mut SDL_Window) -> Result<(), Error> {
     let mut renderer = Renderer::load(load_gl_fn)?;
     let mut game_state = GameState::load(&mut renderer)?;
 
@@ -95,49 +134,15 @@ unsafe fn run_sdl_game_loop(window: *mut SDL_Window) -> Result<(), Error> {
     'game: loop {
         PROFILER.lock().unwrap().begin_frame();
 
-        profile_block!(poll_event, {
-            let mut event = zeroed::<SDL_Event>();
-            while SDL_PollEvent(&mut event) != 0 {
-                match transmute::<_, SDL_EventType>(event.type_) {
-                    SDL_QUIT => {
-                        break 'game;
-                    }
-                    _ => {}
-                }
-            }
-        });
+        if poll_event() {
+            break 'game;
+        }
 
-        profile_block!(update, {
-            let mut window_width = 0;
-            let mut window_height = 0;
-            SDL_GetWindowSize(window, &mut window_width, &mut window_height);
-            renderer.set_viewport_size(Vec2::new(window_width as Scalar, window_height as Scalar));
-
-            render_command_buffer.clear();
-            game_state.update(&input, &mut renderer, &mut render_command_buffer);
-
-            profile_block!(do_render_command, {
-                renderer.do_render_command(&render_command_buffer);
-            });
-        });
-
-        profile_block!(wait, {
-            profile_block!(vsync, {
-                SDL_GL_SwapWindow(window);
-            });
-
-            profile_block!(sleep, {
-                let current_counter = get_performance_counter();
-                let last_counter = PROFILER.lock().unwrap().current_frame().unwrap().begin_counter();
-                let frame_delta_counter = current_counter - last_counter;
-                if frame_delta_counter < counter_per_frame {
-                    let sleep_ms = ((counter_per_frame - frame_delta_counter) * 1000 / frequency) as u32;
-                    if sleep_ms > 0 {
-                        SDL_Delay(sleep_ms);
-                    }
-                }
-            });
-        });
+        prepare_frame(window, &mut renderer, &mut render_command_buffer);
+        game_state.update(&input, &mut renderer, &mut render_command_buffer);
+        renderer.render(&render_command_buffer);
+        swap_buffer(window);
+        sleep(counter_per_frame, frequency);
 
         PROFILER.lock().unwrap().end_frame();
     }

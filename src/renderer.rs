@@ -6,6 +6,7 @@ use std::{
 };
 use failure::{Error, format_err};
 use gl::types::*;
+use profiler::profile;
 
 use crate::math::*;
 use crate::bitmap::*;
@@ -139,7 +140,8 @@ impl Renderer {
         self.viewport_size = viewport_size;
     }
 
-    pub fn do_render_command(&mut self, buffer: &[RenderCommand]) {
+    #[profile]
+    pub fn render(&mut self, buffer: &[RenderCommand]) {
         unsafe {
             gl::Viewport(0, 0, self.viewport_size.x as i32, self.viewport_size.y as i32);
             gl::Clear(gl::COLOR_BUFFER_BIT);
