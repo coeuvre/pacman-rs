@@ -35,6 +35,7 @@ impl Drop for OpenGLTexture {
     }
 }
 
+#[derive(Clone)]
 pub struct TexturedRect2 {
     pub texture: TextureHandle,
     pub src: Rect2,
@@ -147,14 +148,37 @@ impl Renderer {
             gl::Clear(gl::COLOR_BUFFER_BIT);
         }
 
-        for command in buffer.iter() {
-            match command {
-                RenderCommand::RenderTexturedRect2(textured_rect2) => {
-                    let data = [textured_rect2];
-                    self.render_textured_rect2_program.render(self.viewport_size, &data);
-                }
-            }
+        let textured_rect2_array = sort_render_command(buffer);
+        render_textured_rect2(&mut self.render_textured_rect2_program, self.viewport_size, &textured_rect2_array);
+    }
+}
+
+#[profile]
+fn sort_render_command(buffer: &[RenderCommand]) -> Vec<&TexturedRect2> {
+    let mut textured_rect2_array = buffer.iter().flat_map(|c| {
+        let &RenderCommand::RenderTexturedRect2(ref textured_rect2) = c;
+        Some(textured_rect2)
+    }).collect::<Vec<_>>();
+
+    textured_rect2_array.sort_unstable_by(|a, b| {
+        a.texture.inner.id.cmp(&b.texture.inner.id)
+    });
+
+    textured_rect2_array
+}
+
+#[profile]
+fn render_textured_rect2(program: &mut RenderTexturedRect2Program, viewport_size: Vec2, textured_rect2_array: &[&TexturedRect2]) {
+    let mut start = 0;
+    while start < textured_rect2_array.len() {
+        let texture_id = textured_rect2_array[start].texture.inner.id;
+        let mut end = start + 1;
+        while end < textured_rect2_array.len() && textured_rect2_array[end].texture.inner.id == texture_id {
+            end = end + 1;
         }
+        let data = &textured_rect2_array[start..end];
+        program.render(viewport_size, data);
+        start = end;
     }
 }
 
