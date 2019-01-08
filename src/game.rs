@@ -1,3 +1,8 @@
+use std::collections::{
+    HashMap,
+    hash_map,
+};
+
 use failure::Error;
 use profiler::*;
 
@@ -11,18 +16,100 @@ pub struct Input {
 }
 
 pub struct GameState {
-    face: freetype::Face,
+    face: Face,
     count: f32,
     test_texture: TextureHandle,
 }
 
+#[derive(Eq, PartialEq, Hash)]
+pub struct GlyphKey {
+    font_pixel_size: u32,
+    ch: usize,
+}
+
+pub struct SubTexture {
+    texture: TextureHandle,
+    region: Rect2,
+}
+
+pub struct Glyph {
+    offset: Vec2,
+    advance: Vec2,
+    sub_texture: Option<SubTexture>,
+}
+
+pub struct Face {
+    inner: freetype::Face,
+    cache: HashMap<GlyphKey, Glyph>,
+}
+
+impl Face {
+    pub fn load(ft_library: &freetype::Library, url: &str) -> Result<Self, Error> {
+        let face = ft_library.new_face(asset::url_to_path(url), 0)?;
+        Ok(Face {
+            inner: face,
+            cache: HashMap::new(),
+        })
+    }
+
+    pub fn get_or_load_glyph(&mut self, renderer: &mut Renderer, font_pixel_size: u32, ch: usize) -> Option<&Glyph> {
+        let key = GlyphKey { font_pixel_size, ch };
+
+        let glyph = match self.cache.entry(key) {
+            hash_map::Entry::Occupied(o) => {
+                o.into_mut()
+            }
+            hash_map::Entry::Vacant(v) => {
+                let glyph = load_glyph(&self.inner, renderer, font_pixel_size, ch)?;
+                v.insert(glyph)
+            }
+        };
+
+        Some(glyph)
+    }
+}
+
+#[profile]
+pub fn load_glyph(face: &freetype::Face, renderer: &mut Renderer, font_pixel_size: u32, ch: usize) -> Option<Glyph> {
+    face.set_pixel_sizes(0, font_pixel_size).ok()?;
+    face.load_char(ch, freetype::face::LoadFlag::RENDER).ok()?;
+
+    let glyph = face.glyph();
+    let bitmap = Bitmap::from_glyph(&glyph.bitmap());
+
+    let offset = Vec2::new(glyph.bitmap_left() as Scalar, -glyph.bitmap_top() as Scalar);
+    let advance = glyph.advance();
+    let advance = Vec2::new((advance.x >> 6) as Scalar, -(advance.y >> 6) as Scalar);
+
+    let glyph = if bitmap.stride > 0 {
+        let texture = renderer.load_texture(&bitmap);
+        let texture_size = texture.size().as_vec2();
+        let region = Rect2::with_min_size(Vec2::new(0.0, 0.0), texture_size);
+        Glyph {
+            offset,
+            advance,
+            sub_texture: Some(SubTexture {
+                texture,
+                region,
+            })
+        }
+    } else {
+        Glyph {
+            offset,
+            advance,
+            sub_texture: None,
+        }
+    };
+
+    Some(glyph)
+}
 
 impl GameState {
     pub fn load(renderer: &mut Renderer) -> Result<Self, Error> {
         let bitmap = Bitmap::from_url("assets://test.png")?;
         let texture = renderer.load_texture(&bitmap);
         let ft_library = freetype::Library::init()?;
-        let face = ft_library.new_face(asset::url_to_path("assets://test_font.otf"), 0)?;
+        let face = Face::load(&ft_library, "assets://test_font.otf")?;
         Ok(GameState {
             face,
             count: 0.0,
@@ -36,15 +123,15 @@ impl GameState {
 
         self.count += input.dt;
 
-        {
-            let texture = self.test_texture.clone();
-            let texture_size = texture.size().as_vec2();
-            buffer.push(RenderCommand::RenderTexturedRect2(TexturedRect2 {
-                src: Rect2::with_min_size(Vec2::new(0.0, 0.0), texture_size),
-                texture,
-                dst: Rect2::with_min_size(Vec2::new(200.0, 10.0 + 10.0 * self.count), texture_size),
-            }));
-        }
+//        {
+//            let texture = self.test_texture.clone();
+//            let texture_size = texture.size().as_vec2();
+//            buffer.push(RenderCommand::RenderTexturedRect2(TexturedRect2 {
+//                src: Rect2::with_min_size(Vec2::new(0.0, 0.0), texture_size),
+//                texture,
+//                dst: Rect2::with_min_size(Vec2::new(200.0, 10.0 + 10.0 * self.count), texture_size),
+//            }));
+//        }
 
         let font_pixel_size = 16;
         let pos = Vec2::new(10.0, 20.0);
@@ -52,16 +139,16 @@ impl GameState {
         let last_frame = PROFILER.lock().unwrap().last_frame().cloned();
 
         if let Some(last_frame) = last_frame {
-            render_profile_info(renderer, buffer, &mut self.face, &last_frame, pos, font_pixel_size);
+            render_frame_profile(renderer, buffer, &mut self.face, &last_frame, pos, font_pixel_size);
         }
     }
 }
 
 #[profile]
-fn render_profile_info(
+fn render_frame_profile(
     renderer: &mut Renderer,
     buffer: &mut Vec<RenderCommand>,
-    face: &mut freetype::Face,
+    face: &mut Face,
     last_frame: &Frame,
     mut pos: Vec2,
     font_pixel_size: u32,
@@ -83,7 +170,7 @@ fn render_profile_info(
 fn render_text_line<S>(
     renderer: &mut Renderer,
     buffer: &mut Vec<RenderCommand>,
-    face: &mut freetype::Face,
+    face: &mut Face,
     font_pixel_size: u32,
     pos: Vec2,
     text: S
@@ -91,25 +178,20 @@ fn render_text_line<S>(
 where
     S: AsRef<str>
 {
-    face.set_pixel_sizes(0, font_pixel_size)?;
 
     let mut pen_pos = pos;
-    for char in text.as_ref().chars() {
-        face.load_char(char as usize, freetype::face::LoadFlag::RENDER).unwrap();
-        let glyph = face.glyph();
-        let bitmap = Bitmap::from_glyph(&glyph.bitmap());
-        if bitmap.stride > 0 {
-            let texture = renderer.load_texture(&bitmap);
-            let texture_size = texture.size().as_vec2();
-            buffer.push(RenderCommand::RenderTexturedRect2(TexturedRect2 {
-                src: Rect2::with_min_size(Vec2::new(0.0, 0.0), texture_size),
-                texture,
-                dst: Rect2::with_min_size(pen_pos + Vec2::new(glyph.bitmap_left() as Scalar, -glyph.bitmap_top() as Scalar), texture_size),
-            }));
-        }
+    for ch in text.as_ref().chars() {
+        if let Some(glyph) = face.get_or_load_glyph(renderer, font_pixel_size, ch as usize) {
+            if let Some(ref sub_texture) = glyph.sub_texture {
+                buffer.push(RenderCommand::RenderTexturedRect2(TexturedRect2 {
+                    src: sub_texture.region,
+                    texture: sub_texture.texture.clone(),
+                    dst: Rect2::with_min_size(pen_pos + glyph.offset, sub_texture.texture.size().as_vec2()),
+                }));
+            }
 
-        let advance = glyph.advance();
-        pen_pos = pen_pos + Vec2::new((advance.x >> 6) as Scalar, -(advance.y >> 6) as Scalar);
+            pen_pos = pen_pos + glyph.advance;
+        }
     }
 
     Ok(())
