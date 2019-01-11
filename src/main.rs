@@ -25,6 +25,7 @@ pub mod renderer;
 pub mod math;
 pub mod bitmap;
 pub mod game;
+pub mod canvas;
 
 use crate::renderer::*;
 use crate::math::*;
@@ -118,13 +119,14 @@ fn sleep(counter_per_frame: u64, frequency: u64) {
     }
 }
 
-fn prepare_frame(window: *mut SDL_Window, renderer: &mut Renderer, render_command_buffer: &mut Vec<RenderCommand>) {
+fn prepare_frame(window: *mut SDL_Window, renderer: &mut Renderer, dl: &mut DisplayList) {
     let mut window_width = 0;
     let mut window_height = 0;
     unsafe { SDL_GetWindowSize(window, &mut window_width, &mut window_height); }
-    renderer.set_viewport_size(Vec2::new(window_width as Scalar, window_height as Scalar));
-
-    render_command_buffer.clear();
+    let viewport_size = Vec2::new(window_width as Scalar, window_height as Scalar);
+    renderer.set_viewport_size(viewport_size);
+    dl.viewport_size = viewport_size;
+    dl.clear();
 }
 
 fn run_sdl_game_loop(window: *mut SDL_Window) -> Result<(), Error> {
@@ -134,7 +136,7 @@ fn run_sdl_game_loop(window: *mut SDL_Window) -> Result<(), Error> {
     let input = Input {
         dt: 0.016,
     };
-    let mut render_command_buffer = Vec::new();
+    let mut dl = DisplayList::new();
 
     let frequency = get_performance_frequency();
     let counter_per_frame = (input.dt as f64 * frequency as f64) as u64;
@@ -146,9 +148,9 @@ fn run_sdl_game_loop(window: *mut SDL_Window) -> Result<(), Error> {
             break 'game;
         }
 
-        prepare_frame(window, &mut renderer, &mut render_command_buffer);
-        game_state.update(&input, &mut renderer, &mut render_command_buffer);
-        renderer.render(&render_command_buffer);
+        prepare_frame(window, &mut renderer, &mut dl);
+        game_state.update(&input, &mut renderer, &mut dl);
+        renderer.render(&dl);
         swap_buffer(window);
         sleep(counter_per_frame, frequency);
 

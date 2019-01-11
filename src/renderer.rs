@@ -8,13 +8,47 @@ use failure::{Error, format_err};
 use gl::types::*;
 use profiler::profile;
 
-mod quad;
+mod render_triangle;
 
 use crate::math::*;
 use crate::bitmap::*;
-use self::quad::*;
+use self::render_triangle::*;
 
-pub use self::quad::Quad;
+pub use self::render_triangle::{Vertex, Index};
+
+pub struct DisplayList {
+    pub viewport_size: Vec2,
+    commands: Vec<RenderCommand>,
+}
+
+impl DisplayList {
+    pub fn new() -> DisplayList {
+        DisplayList {
+            viewport_size: Vec2::zero(),
+            commands: Vec::new(),
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.commands.clear();
+    }
+
+    pub fn render_triangles(&mut self, vertices: Vec<Vertex>, indices: Vec<Index>, texture: Option<TextureHandle>) {
+        self.commands.push(RenderCommand::RenderTriangles(Triangles {
+            vertices,
+            indices,
+            texture,
+        }))
+    }
+}
+
+#[derive(Clone)]
+pub struct Quad {
+    pub texture: Option<TextureHandle>,
+    pub src: Rect2,
+    pub dst: Rect2,
+    pub color: Vec4,
+}
 
 #[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct TextureHandle {
@@ -26,8 +60,16 @@ impl TextureHandle {
     pub fn size(&self) -> Vec2i {
         Vec2i::new(self.inner.width as i32, self.inner.height as i32)
     }
+
+    pub fn whole_texture(self) -> SubTexture {
+        SubTexture {
+            texture: self.clone(),
+            region: Rect2::with_min_size(Vec2::zero(), self.size().as_vec2())
+        }
+    }
 }
 
+#[derive(Clone)]
 pub struct SubTexture {
     pub texture: TextureHandle,
     pub region: Rect2,
@@ -46,13 +88,22 @@ impl Drop for OpenGLTexture {
     }
 }
 
-pub enum RenderCommand {
-    RenderQuad(Quad),
+enum RenderCommand {
+//    RenderQuad(Quad),
+    RenderTriangles(Triangles)
 }
+
+struct Triangles {
+    pub vertices: Vec<Vertex>,
+    pub indices: Vec<Index>,
+    pub texture: Option<TextureHandle>,
+}
+
 
 pub struct Renderer {
     viewport_size: Vec2,
-    render_quad_program: RenderQuadProgram
+    white1x1_texture: TextureHandle,
+    render_triangle_program: RenderTriangleShader
 }
 
 impl Renderer {
@@ -70,9 +121,19 @@ impl Renderer {
             gl::Enable(gl::MULTISAMPLE);
         }
 
+        let white1x1_bitmap = Bitmap {
+            width: 1,
+            height: 1,
+            stride: 1,
+            pixels: Pixels::A8(vec![255]),
+        };
+
+        let white1x1_texture = load_texture(&white1x1_bitmap);
+
         Ok(Renderer {
             viewport_size: Vec2::zero(),
-            render_quad_program: RenderQuadProgram::load()?
+            white1x1_texture,
+            render_triangle_program: RenderTriangleShader::load()?
         })
     }
 
@@ -85,14 +146,21 @@ impl Renderer {
     }
 
     #[profile]
-    pub fn render(&mut self, buffer: &[RenderCommand]) {
+    pub fn render(&mut self, display_list: &DisplayList) {
         unsafe {
             gl::Viewport(0, 0, self.viewport_size.x as i32, self.viewport_size.y as i32);
+            gl::Scissor(0, 0, self.viewport_size.x as i32, self.viewport_size.y as i32);
+            gl::Enable(gl::SCISSOR_TEST);
             gl::Clear(gl::COLOR_BUFFER_BIT);
         }
 
-        let textured_rect2_array = sort_render_command(buffer);
-        render_textured_rect2(&mut self.render_quad_program, self.viewport_size, &textured_rect2_array);
+        for command in display_list.commands.iter() {
+            match *command {
+                RenderCommand::RenderTriangles(ref triangles) => {
+                    render_triangles(&mut self.render_triangle_program, &self.white1x1_texture, triangles);
+                }
+            }
+        }
     }
 }
 
@@ -161,33 +229,10 @@ fn load_texture(bitmap: &Bitmap) -> TextureHandle {
     }
 }
 
-#[profile]
-fn sort_render_command(buffer: &[RenderCommand]) -> Vec<&Quad> {
-    let mut textured_rect2_array = buffer.iter().flat_map(|c| {
-        let &RenderCommand::RenderQuad(ref textured_rect2) = c;
-        Some(textured_rect2)
-    }).collect::<Vec<_>>();
-
-    textured_rect2_array.sort_unstable_by(|a, b| {
-        a.texture.cmp(&b.texture)
-    });
-
-    textured_rect2_array
-}
-
-#[profile]
-fn render_textured_rect2(program: &mut RenderQuadProgram, viewport_size: Vec2, textured_rect2_array: &[&Quad]) {
-    let mut start = 0;
-    while start < textured_rect2_array.len() {
-        let texture = &textured_rect2_array[start].texture;
-        let mut end = start + 1;
-        while end < textured_rect2_array.len() && &textured_rect2_array[end].texture == texture {
-            end = end + 1;
-        }
-        let data = &textured_rect2_array[start..end];
-        program.render(viewport_size, data);
-        start = end;
-    }
+fn render_triangles(program: &mut RenderTriangleShader, white1x1_texture: &TextureHandle, triangles: &Triangles) {
+    let texture = triangles.texture.as_ref().unwrap_or(white1x1_texture);
+    program.set_vertices(&triangles.vertices, &triangles.indices);
+    program.render(texture.inner.id, 0, triangles.indices.len());
 }
 
 struct Shader {
