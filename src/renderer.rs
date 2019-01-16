@@ -17,14 +17,14 @@ use self::render_triangle::*;
 pub use self::render_triangle::{Vertex, Index};
 
 pub struct DisplayList {
-    pub viewport_size: Vec2,
+    viewport: Rect2,
     commands: Vec<RenderCommand>,
 }
 
 impl DisplayList {
     pub fn new() -> DisplayList {
         DisplayList {
-            viewport_size: Vec2::zero(),
+            viewport: Rect2::with_min_size(Vec2::zero(), Vec2::zero()),
             commands: Vec::new(),
         }
     }
@@ -33,8 +33,16 @@ impl DisplayList {
         self.commands.clear();
     }
 
+    pub fn set_viewport(&mut self, viewport: Rect2) {
+        self.viewport = viewport;
+    }
+
+    pub fn viewport(&self) -> Rect2 {
+        self.viewport
+    }
+
     pub fn render_triangles(&mut self, vertices: Vec<Vertex>, indices: Vec<Index>, texture: Option<TextureHandle>) {
-        self.commands.push(RenderCommand::RenderTriangles(Triangles {
+        self.commands.push(RenderCommand::RenderTriangles(TriangleGroup {
             vertices,
             indices,
             texture,
@@ -61,8 +69,8 @@ impl TextureHandle {
         Vec2i::new(self.inner.width as i32, self.inner.height as i32)
     }
 
-    pub fn whole_texture(self) -> SubTexture {
-        SubTexture {
+    pub fn whole_texture(self) -> TextureRegion {
+        TextureRegion {
             texture: self.clone(),
             region: Rect2::with_min_size(Vec2::zero(), self.size().as_vec2())
         }
@@ -70,7 +78,7 @@ impl TextureHandle {
 }
 
 #[derive(Clone)]
-pub struct SubTexture {
+pub struct TextureRegion {
     pub texture: TextureHandle,
     pub region: Rect2,
 }
@@ -89,11 +97,12 @@ impl Drop for OpenGLTexture {
 }
 
 enum RenderCommand {
-//    RenderQuad(Quad),
-    RenderTriangles(Triangles)
+    RenderTriangles(TriangleGroup),
+    _Other,
 }
 
-struct Triangles {
+#[derive(Clone)]
+struct TriangleGroup {
     pub vertices: Vec<Vertex>,
     pub indices: Vec<Index>,
     pub texture: Option<TextureHandle>,
@@ -101,7 +110,6 @@ struct Triangles {
 
 
 pub struct Renderer {
-    viewport_size: Vec2,
     white1x1_texture: TextureHandle,
     render_triangle_program: RenderTriangleShader
 }
@@ -131,35 +139,41 @@ impl Renderer {
         let white1x1_texture = load_texture(&white1x1_bitmap);
 
         Ok(Renderer {
-            viewport_size: Vec2::zero(),
             white1x1_texture,
             render_triangle_program: RenderTriangleShader::load()?
         })
     }
 
+    #[profile]
     pub fn load_texture(&mut self, bitmap: &Bitmap) -> TextureHandle {
         load_texture(bitmap)
     }
 
-    pub fn set_viewport_size(&mut self, viewport_size: Vec2) {
-        self.viewport_size = viewport_size;
-    }
-
     #[profile]
     pub fn render(&mut self, display_list: &DisplayList) {
+        let viewport_min = display_list.viewport.min;
+        let viewport_size = display_list.viewport.size();
         unsafe {
-            gl::Viewport(0, 0, self.viewport_size.x as i32, self.viewport_size.y as i32);
-            gl::Scissor(0, 0, self.viewport_size.x as i32, self.viewport_size.y as i32);
+            gl::Viewport(viewport_min.x as i32, viewport_min.y as i32, viewport_size.x as i32, viewport_size.y as i32);
+            gl::Scissor(viewport_min.x as i32, viewport_min.y as i32, viewport_size.x as i32, viewport_size.y as i32);
             gl::Enable(gl::SCISSOR_TEST);
             gl::Clear(gl::COLOR_BUFFER_BIT);
         }
 
-        for command in display_list.commands.iter() {
-            match *command {
-                RenderCommand::RenderTriangles(ref triangles) => {
-                    render_triangles(&mut self.render_triangle_program, &self.white1x1_texture, triangles);
-                }
+        let mut triangle_groups = display_list.commands.iter().filter_map(|c| {
+            if let RenderCommand::RenderTriangles(triangle_group) = c {
+                Some(triangle_group)
+            } else {
+                None
             }
+        }).collect::<Vec<_>>();
+
+        triangle_groups.sort_by(|a, b| a.texture.cmp(&b.texture));
+
+        let merged_triangle_groups = merge_triangle_groups(&triangle_groups);
+
+        for triangle_group in merged_triangle_groups.iter() {
+            render_triangle_group(&mut self.render_triangle_program, &self.white1x1_texture, triangle_group);
         }
     }
 }
@@ -229,10 +243,40 @@ fn load_texture(bitmap: &Bitmap) -> TextureHandle {
     }
 }
 
-fn render_triangles(program: &mut RenderTriangleShader, white1x1_texture: &TextureHandle, triangles: &Triangles) {
-    let texture = triangles.texture.as_ref().unwrap_or(white1x1_texture);
-    program.set_vertices(&triangles.vertices, &triangles.indices);
-    program.render(texture.inner.id, 0, triangles.indices.len());
+#[profile]
+fn merge_triangle_groups(triangle_groups: &[&TriangleGroup]) -> Vec<TriangleGroup> {
+    let mut merged_triangle_groups: Vec<TriangleGroup> = Vec::new();
+
+    let mut start = 0;
+    while start < triangle_groups.len() {
+        let mut new_group = triangle_groups[start].clone();
+
+        let mut next = start + 1;
+        while next < triangle_groups.len() {
+            let triangle_group = triangle_groups[next];
+            if triangle_group.texture == new_group.texture {
+                let offset = new_group.vertices.len() as u32;
+                new_group.vertices.extend(triangle_group.vertices.iter().cloned());
+                new_group.indices.extend(triangle_group.indices.iter().map(|index| index + offset));
+            } else {
+                break;
+            }
+
+            next = next + 1;
+        }
+
+        merged_triangle_groups.push(new_group);
+
+        start = next;
+    }
+
+    merged_triangle_groups
+}
+
+fn render_triangle_group(program: &mut RenderTriangleShader, white1x1_texture: &TextureHandle, triangle_group: &TriangleGroup) {
+    let texture = triangle_group.texture.as_ref().unwrap_or(white1x1_texture);
+    program.set_vertices(&triangle_group.vertices, &triangle_group.indices);
+    program.render(texture.inner.id, 0, triangle_group.indices.len());
 }
 
 struct Shader {

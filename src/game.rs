@@ -30,7 +30,7 @@ pub struct GlyphKey {
 pub struct Glyph {
     offset: Vec2,
     advance: Vec2,
-    sub_texture: Option<SubTexture>,
+    texture_region: Option<TextureRegion>,
 }
 
 pub struct Face {
@@ -84,7 +84,7 @@ pub fn load_glyph(face: &freetype::Face, renderer: &mut Renderer, font_pixel_siz
         Glyph {
             offset,
             advance,
-            sub_texture: Some(SubTexture {
+            texture_region: Some(TextureRegion {
                 texture,
                 region,
             })
@@ -93,7 +93,7 @@ pub fn load_glyph(face: &freetype::Face, renderer: &mut Renderer, font_pixel_siz
         Glyph {
             offset,
             advance,
-            sub_texture: None,
+            texture_region: None,
         }
     };
 
@@ -164,7 +164,7 @@ fn render_block(renderer: &mut Renderer, dl: &mut DisplayList,
 
     let mut text_pos = *pos + Vec2::new(20.0 * block.level() as f32, 0.0);
     let text = if block.level() > 0 {
-        format!("[{}] {:.2} ms {} ({}:{})", block.index(), delta_ms, data.name(), data.file(), data.line())
+        format!("{:.2} ms {} ({}:{})", delta_ms, data.name(), data.file(), data.line())
     } else {
         format!("{:.2} ms", delta_ms)
     };
@@ -197,10 +197,10 @@ where
 {
     for ch in text.as_ref().chars() {
         if let Some(glyph) = face.get_or_load_glyph(renderer, font_pixel_size, ch as usize) {
-            if let Some(ref sub_texture) = glyph.sub_texture {
+            if let Some(ref texture_region) = glyph.texture_region {
                 dl.render_textured_quad(
-                    Rect2::with_min_size(*pos + glyph.offset, sub_texture.texture.size().as_vec2()),
-                    sub_texture.clone(),
+                    Rect2::with_min_size(*pos + glyph.offset, texture_region.texture.size().as_vec2()),
+                    texture_region.clone(),
                     Vec4::new(1.0, 0.0, 0.0, 1.0),
                 );
             }
@@ -213,35 +213,36 @@ where
 }
 
 impl DisplayList {
-    pub fn render_textured_quad(&mut self, dst: Rect2, sub_texture: SubTexture, color: Vec4) {
-        self.render_quad_raw(dst, color, Some(sub_texture))
+    pub fn render_textured_quad(&mut self, dst: Rect2, texture_region: TextureRegion, color: Vec4) {
+        self.render_quad_raw(dst, color, Some(texture_region))
     }
 
     pub fn render_quad(&mut self, dst: Rect2, color: Vec4) {
         self.render_quad_raw(dst, color, None)
     }
 
-    fn render_quad_raw(&mut self, dst: Rect2, color: Vec4, sub_texture: Option<SubTexture>) {
-        let mut vertices = Vec::new();
-        let mut indices = Vec::new();
+    fn render_quad_raw(&mut self, dst: Rect2, color: Vec4, texture_region: Option<TextureRegion>) {
+        let mut vertices = Vec::with_capacity(4);
+        let mut indices = Vec::with_capacity(6);
 
-        let inv_viewport_size = 1.0 / self.viewport_size;
+        let viewport_size = self.viewport().size();
+        let inv_viewport_size = 1.0 / viewport_size;
         let dst_rect_size = dst.size();
-        let dst_rect_min = Vec2::new(dst.min.x, self.viewport_size.y - dst.min.y - dst_rect_size.y);
-        let dst_rect_max = Vec2::new(dst.max.x, self.viewport_size.y - dst.min.y);
+        let dst_rect_min = Vec2::new(dst.min.x, viewport_size.y - dst.min.y - dst_rect_size.y);
+        let dst_rect_max = Vec2::new(dst.max.x, viewport_size.y - dst.min.y);
         let min = dst_rect_min.hadamard(inv_viewport_size) * 2.0 - Vec2::new(1.0, 1.0);
         let max = dst_rect_max.hadamard(inv_viewport_size) * 2.0 - Vec2::new(1.0, 1.0);
 
-        let (tex_min, tex_max, texture) = if let Some(ref sub_texture) = sub_texture {
-            let src = sub_texture.region;
+        let (tex_min, tex_max, texture) = if let Some(ref texture_region) = texture_region {
+            let src = texture_region.region;
             let src_rect_size = src.size();
-            let texture_size = sub_texture.texture.size().as_vec2();
+            let texture_size = texture_region.texture.size().as_vec2();
             let inv_texture_size = 1.0 / texture_size;
             let src_rect_min = Vec2::new(src.min.x, texture_size.y - src.min.y - src_rect_size.y);
             let src_rect_max = Vec2::new(src.max.x, texture_size.y - src.min.y);
             let tex_min = src_rect_min.hadamard(inv_texture_size);
             let tex_max = src_rect_max.hadamard(inv_texture_size);
-            (tex_min, tex_max, Some(sub_texture.texture.clone()))
+            (tex_min, tex_max, Some(texture_region.texture.clone()))
         } else {
             (Vec2::zero(), Vec2::one(), None)
         };
@@ -252,28 +253,28 @@ impl DisplayList {
         vertices.push(Vertex {
             pos: Vec2::new(min.x, min.y),
             tex_coord: Vec2::new(tex_min.x, tex_min.y),
-            color: color,
+            color,
         });
 
         // Bottom Right
         vertices.push(Vertex {
             pos: Vec2::new(max.x, min.y),
             tex_coord: Vec2::new(tex_max.x, tex_min.y),
-            color: color,
+            color,
         });
 
         // Top Right
         vertices.push(Vertex {
             pos: Vec2::new(max.x, max.y),
             tex_coord: Vec2::new(tex_max.x, tex_max.y),
-            color: color,
+            color,
         });
 
         // Top Left
         vertices.push(Vertex {
             pos: Vec2::new(min.x, max.y),
             tex_coord: Vec2::new(tex_min.x, tex_max.y),
-            color: color,
+            color,
         });
 
         indices.push(vertex_index);

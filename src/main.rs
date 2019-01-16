@@ -119,17 +119,17 @@ fn sleep(counter_per_frame: u64, frequency: u64) {
     }
 }
 
-fn prepare_frame(window: *mut SDL_Window, renderer: &mut Renderer, dl: &mut DisplayList) {
+fn prepare_frame(window: *mut SDL_Window, dl: &mut DisplayList) {
     let mut window_width = 0;
     let mut window_height = 0;
     unsafe { SDL_GetWindowSize(window, &mut window_width, &mut window_height); }
     let viewport_size = Vec2::new(window_width as Scalar, window_height as Scalar);
-    renderer.set_viewport_size(viewport_size);
-    dl.viewport_size = viewport_size;
+    dl.set_viewport(Rect2::with_min_size(Vec2::zero(), viewport_size));
     dl.clear();
 }
 
 fn run_sdl_game_loop(window: *mut SDL_Window) -> Result<(), Error> {
+    PROFILER.lock().unwrap().begin_frame();
     let mut renderer = Renderer::load(load_gl_fn)?;
     let mut game_state = GameState::load(&mut renderer)?;
 
@@ -140,6 +140,7 @@ fn run_sdl_game_loop(window: *mut SDL_Window) -> Result<(), Error> {
 
     let frequency = get_performance_frequency();
     let counter_per_frame = (input.dt as f64 * frequency as f64) as u64;
+    PROFILER.lock().unwrap().end_frame();
 
     'game: loop {
         PROFILER.lock().unwrap().begin_frame();
@@ -148,7 +149,7 @@ fn run_sdl_game_loop(window: *mut SDL_Window) -> Result<(), Error> {
             break 'game;
         }
 
-        prepare_frame(window, &mut renderer, &mut dl);
+        prepare_frame(window, &mut dl);
         game_state.update(&input, &mut renderer, &mut dl);
         renderer.render(&dl);
         swap_buffer(window);
