@@ -16,7 +16,8 @@ impl<T> Tree<T> {
             last_child_id: None,
             prev_sibling_id: None,
             next_sibling_id: None,
-            level: 1,
+            level: 0,
+            index: 0,
             data: root
         };
         Tree {
@@ -33,7 +34,8 @@ impl<T> Tree<T> {
             last_child_id: None,
             prev_sibling_id: None,
             next_sibling_id: None,
-            level: 1,
+            level: 0,
+            index: 0,
             data: root
         };
         self.nodes.push(root_node);
@@ -46,6 +48,10 @@ impl<T> Tree<T> {
         } else {
             None
         }
+    }
+
+    pub fn root(&self) -> NodeRef<T> {
+        self.get(0).unwrap()
     }
 
     pub fn get(&self, id: NodeId) -> Option<NodeRef<T>> {
@@ -81,6 +87,21 @@ impl<T> Tree<T> {
 pub struct NodeRef<'a, T> {
     tree: &'a Tree<T>,
     id: NodeId
+}
+
+impl<'a, T> NodeRef<'a, T> {
+    pub fn parent(&self) -> Option<NodeRef<T>> {
+        self.tree.get(self.id)
+            .and_then(|node| node.parent_id)
+            .and_then(|parent_id| self.tree.get(parent_id))
+    }
+
+    pub fn children(&self) -> ChildrenIter<T> {
+        ChildrenIter {
+            tree: self.tree,
+            next_id: self.tree.get(self.id).and_then(|node| node.first_child_id),
+        }
+    }
 }
 
 impl<'a, T> Deref for NodeRef<'a, T> {
@@ -123,6 +144,7 @@ impl<'a, T> NodeMut<'a, T> {
         let new_id = self.tree.nodes.len();
 
         let parent_level: u32;
+        let prev_sibling_index: Option<u32>;
         let prev_sibling_id: Option<NodeId>;
         {
             let mut parent = self.tree.get_mut(self.id).unwrap();
@@ -138,6 +160,9 @@ impl<'a, T> NodeMut<'a, T> {
         if let Some(prev_sibling_id) = prev_sibling_id {
             let prev_sibling = &mut self.tree.nodes[prev_sibling_id];
             prev_sibling.next_sibling_id = Some(new_id);
+            prev_sibling_index = Some(prev_sibling.index);
+        } else {
+            prev_sibling_index = None
         }
 
         let new_node = {
@@ -148,6 +173,11 @@ impl<'a, T> NodeMut<'a, T> {
                 prev_sibling_id,
                 next_sibling_id: None,
                 level: parent_level + 1,
+                index: if let Some(prev_sibling_index) = prev_sibling_index {
+                    prev_sibling_index + 1
+                } else {
+                    0
+                },
                 data
             }
         };
@@ -158,11 +188,9 @@ impl<'a, T> NodeMut<'a, T> {
     }
 
     pub fn parent(&mut self) -> Option<NodeMut<T>> {
-        if let Some(parent_id) = self.tree.nodes[self.id].parent_id {
-            self.tree.get_mut(parent_id)
-        } else {
-            None
-        }
+        self.tree.get(self.id)
+            .and_then(|node| node.parent_id)
+            .and_then(move |parent_id| self.tree.get_mut(parent_id))
     }
 }
 
@@ -174,6 +202,7 @@ pub struct Node<T> {
     prev_sibling_id: Option<NodeId>,
     next_sibling_id: Option<NodeId>,
     level: u32,
+    index: u32,
     data: T,
 }
 
@@ -185,6 +214,8 @@ impl<T> Node<T> {
     pub fn level(&self) -> u32 {
         self.level
     }
+
+    pub fn index(&self) -> u32 { self.index }
 }
 
 pub struct Dfs<'a, T> {
@@ -208,5 +239,23 @@ impl<'a, T> Iterator for Dfs<'a, T> {
         } else {
             None
         }
+    }
+}
+
+pub struct ChildrenIter<'a, T> {
+    tree: &'a Tree<T>,
+    next_id: Option<NodeId>,
+}
+
+impl<'a, T> Iterator for ChildrenIter<'a, T> {
+    type Item = NodeRef<'a, T>;
+
+    fn next(&mut self) -> Option<NodeRef<'a, T>> {
+        self.next_id
+            .and_then(|next_id| self.tree.get(next_id))
+            .map(|node| {
+                self.next_id = node.next_sibling_id;
+                node
+            })
     }
 }

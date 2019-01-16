@@ -3,6 +3,8 @@ use lazy_static::lazy_static;
 
 use vectree::*;
 
+pub type BlockRef<'a> = NodeRef<'a, Block>;
+
 pub use profiler_macro::profile;
 
 pub fn get_performance_counter() -> u64 {
@@ -153,8 +155,12 @@ impl Frame {
         root_block_node.data().delta()
     }
 
-    pub fn dfs_block_iter(&self) -> Dfs<Block> {
+    pub fn dfs_block_iter(&self) -> impl Iterator<Item=BlockRef> {
         self.block_tree.as_ref().unwrap().dfs_iter()
+    }
+
+    pub fn root_block(&self) -> BlockRef {
+        self.block_tree.as_ref().unwrap().root()
     }
 
     pub fn open_block<N>(&mut self, file: &'static str, line: u32, name: N) where N: Into<String> {

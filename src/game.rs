@@ -47,6 +47,7 @@ impl Face {
         })
     }
 
+    #[profile]
     pub fn get_or_load_glyph(&mut self, renderer: &mut Renderer, font_pixel_size: u32, ch: usize) -> Option<&Glyph> {
         let key = GlyphKey { font_pixel_size, ch };
 
@@ -60,7 +61,7 @@ impl Face {
             }
         };
 
-        Some(glyph)
+        Some(glyph as &Glyph)
     }
 }
 
@@ -147,47 +148,64 @@ fn render_frame_profile(
     dl: &mut DisplayList,
     face: &mut Face,
     last_frame: &Frame,
-    mut pos: Vec2,
+    pos: Vec2,
     font_pixel_size: u32,
 ) {
-    for block in last_frame.dfs_block_iter() {
-        let data = block.data();
-        let delta_ms = data.delta() * 1000.0;
-        let block_pos = pos + Vec2::new(20.0 * (block.level() - 1) as f32, 0.0);
-        let text = if block.level() > 1 {
-            format!("{:.2} ms {} ({}:{})", delta_ms, data.name(), data.file(), data.line())
+    let root_block = last_frame.root_block();
+    let mut pos = pos;
+    render_block(renderer, dl, face, font_pixel_size, &root_block, &mut pos);
+}
+
+fn render_block(renderer: &mut Renderer, dl: &mut DisplayList,
+                face: &mut Face, font_pixel_size: u32,
+                block: &BlockRef, pos: &mut Vec2) {
+    let data = block.data();
+    let delta_ms = data.delta() * 1000.0;
+
+    let mut text_pos = *pos + Vec2::new(20.0 * block.level() as f32, 0.0);
+    let text = if block.level() > 0 {
+        format!("[{}] {:.2} ms {} ({}:{})", block.index(), delta_ms, data.name(), data.file(), data.line())
+    } else {
+        format!("{:.2} ms", delta_ms)
+    };
+    render_text_line(renderer, dl, face, font_pixel_size, text, &mut text_pos).unwrap();
+    pos.y = pos.y + font_pixel_size as f32;
+
+    for child in block.children() {
+        if child.index() < 10 && child.level() < 4 {
+            render_block(renderer, dl, face, font_pixel_size, &child, pos);
         } else {
-            format!("{:.2} ms", delta_ms)
-        };
-        render_text_line(renderer, dl, face, font_pixel_size, block_pos, text).unwrap();
-        pos.y = pos.y + font_pixel_size as f32;
+            let mut text_pos = *pos + Vec2::new(20.0 * child.level() as f32, 0.0);
+            render_text_line(renderer, dl, face, font_pixel_size, "...", &mut text_pos).unwrap();
+            pos.y = pos.y + font_pixel_size as f32;
+            break;
+        }
     }
 }
 
+#[profile]
 fn render_text_line<S>(
     renderer: &mut Renderer,
     dl: &mut DisplayList,
     face: &mut Face,
     font_pixel_size: u32,
-    pos: Vec2,
-    text: S
+    text: S,
+    pos: &mut Vec2,
 ) -> Result<(), Error>
 where
     S: AsRef<str>
 {
-
-    let mut pen_pos = pos;
     for ch in text.as_ref().chars() {
         if let Some(glyph) = face.get_or_load_glyph(renderer, font_pixel_size, ch as usize) {
             if let Some(ref sub_texture) = glyph.sub_texture {
                 dl.render_textured_quad(
-                    Rect2::with_min_size(pen_pos + glyph.offset, sub_texture.texture.size().as_vec2()),
+                    Rect2::with_min_size(*pos + glyph.offset, sub_texture.texture.size().as_vec2()),
                     sub_texture.clone(),
                     Vec4::new(1.0, 0.0, 0.0, 1.0),
                 );
             }
 
-            pen_pos = pen_pos + glyph.advance;
+            *pos = *pos + glyph.advance;
         }
     }
 
