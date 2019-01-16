@@ -4,7 +4,7 @@ use std::collections::{
 };
 
 use failure::Error;
-use profiler::*;
+use profiler::{last_frame, profile, Frame, BlockRef};
 
 use crate::renderer::*;
 use crate::bitmap::*;
@@ -134,7 +134,7 @@ impl GameState {
         let font_pixel_size = 16;
         let pos = Vec2::new(10.0, 20.0);
 
-        let last_frame = PROFILER.lock().unwrap().last_frame().cloned();
+        let last_frame = last_frame();
 
         if let Some(last_frame) = last_frame {
             render_frame_profile(renderer, dl, &mut self.face, &last_frame, pos, font_pixel_size);
@@ -213,6 +213,7 @@ where
 }
 
 impl DisplayList {
+    #[profile]
     pub fn render_textured_quad(&mut self, dst: Rect2, texture_region: TextureRegion, color: Vec4) {
         self.render_quad_raw(dst, color, Some(texture_region))
     }

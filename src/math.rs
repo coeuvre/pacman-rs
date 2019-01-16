@@ -9,7 +9,7 @@ pub struct Vec2i {
 }
 
 impl Vec2i {
-    #[inline]
+    #[inline(always)]
     pub fn new(x: i32, y: i32) -> Vec2i {
         Vec2i { x, y }
     }
@@ -26,22 +26,22 @@ pub struct Vec2 {
 }
 
 impl Vec2 {
-    #[inline]
+    #[inline(always)]
     pub fn new(x: Scalar, y: Scalar) -> Vec2 {
         Vec2 { x, y }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn zero() -> Vec2 {
         Vec2::new(0.0, 0.0)
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn one() -> Vec2 {
         Vec2::new(1.0, 1.0)
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn hadamard(self, rhs: Vec2) -> Vec2 {
         Vec2::new(self.x * rhs.x, self.y * rhs.y)
     }
@@ -86,7 +86,7 @@ pub struct Rect2 {
 }
 
 impl Rect2 {
-    #[inline]
+    #[inline(always)]
     pub fn with_min_max(min: Vec2, max: Vec2) -> Rect2 {
         Rect2 {
             min,
@@ -94,7 +94,7 @@ impl Rect2 {
         }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn with_min_size(min: Vec2, size: Vec2) -> Rect2 {
         Rect2 {
             min,
@@ -102,7 +102,7 @@ impl Rect2 {
         }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn size(&self) -> Vec2 {
         self.max - self.min
     }
@@ -116,7 +116,7 @@ pub struct Vec3 {
 }
 
 impl Vec3 {
-    #[inline]
+    #[inline(always)]
     pub fn new(x: Scalar, y: Scalar, z: Scalar) -> Vec3 {
         Vec3 { x, y, z }
     }
@@ -139,17 +139,17 @@ pub struct Vec4 {
 }
 
 impl Vec4 {
-    #[inline]
+    #[inline(always)]
     pub fn new(x: Scalar, y: Scalar, z: Scalar, w: Scalar) -> Vec4 {
         Vec4 { x, y, z, w }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn from_xyz(xyz: Vec3, w: Scalar) -> Vec4 {
         Vec4::new(xyz.x, xyz.y, xyz.z, w)
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn xyz(&self) -> Vec3 {
         Vec3::new(self.x, self.y, self.z)
     }

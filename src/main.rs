@@ -108,8 +108,9 @@ fn swap_buffer(window: *mut SDL_Window) {
 
 #[profile]
 fn sleep(counter_per_frame: u64, frequency: u64) {
+    reduce_profile_events();
     let current_counter = get_performance_counter();
-    let last_counter = PROFILER.lock().unwrap().current_frame().unwrap().begin_counter();
+    let last_counter = last_counter().unwrap();
     let frame_delta_counter = current_counter - last_counter;
     if frame_delta_counter < counter_per_frame {
         let sleep_ms = ((counter_per_frame - frame_delta_counter) * 1000 / frequency) as u32;
@@ -129,7 +130,7 @@ fn prepare_frame(window: *mut SDL_Window, dl: &mut DisplayList) {
 }
 
 fn run_sdl_game_loop(window: *mut SDL_Window) -> Result<(), Error> {
-    PROFILER.lock().unwrap().begin_frame();
+    begin_frame();
     let mut renderer = Renderer::load(load_gl_fn)?;
     let mut game_state = GameState::load(&mut renderer)?;
 
@@ -140,10 +141,10 @@ fn run_sdl_game_loop(window: *mut SDL_Window) -> Result<(), Error> {
 
     let frequency = get_performance_frequency();
     let counter_per_frame = (input.dt as f64 * frequency as f64) as u64;
-    PROFILER.lock().unwrap().end_frame();
+    end_frame();
 
     'game: loop {
-        PROFILER.lock().unwrap().begin_frame();
+        begin_frame();
 
         if poll_event() {
             break 'game;
@@ -155,7 +156,8 @@ fn run_sdl_game_loop(window: *mut SDL_Window) -> Result<(), Error> {
         swap_buffer(window);
         sleep(counter_per_frame, frequency);
 
-        PROFILER.lock().unwrap().end_frame();
+        end_frame();
+        reduce_profile_events();
     }
 
     Ok(())

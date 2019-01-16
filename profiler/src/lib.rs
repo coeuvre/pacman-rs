@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::sync::Mutex;
 use lazy_static::lazy_static;
 
@@ -16,7 +17,7 @@ pub fn get_performance_frequency() -> u64 {
 }
 
 lazy_static! {
-    pub static ref PROFILER: Mutex<Profiler> = Mutex::new(Profiler::new());
+    static ref PROFILER: Mutex<Profiler> = Mutex::new(Profiler::new());
 }
 
 pub struct Profiler {
@@ -38,7 +39,7 @@ impl Profiler {
         }
     }
 
-    pub fn begin_frame(&mut self) {
+    fn on_frame_began(&mut self, data: FrameBegan) {
         assert!(self.current_frame_index.is_none());
 
         self.count = self.count + 1;
@@ -53,14 +54,14 @@ impl Profiler {
         let current_frame = &mut self.frames[self.current_frame_index.unwrap()];
         current_frame.frequency = self.frequency;
         current_frame.count = self.count;
-        current_frame.begin();
+        current_frame.begin(data);
     }
 
-    pub fn end_frame(&mut self) {
+    fn on_frame_ended(&mut self, data: FrameEnded) {
         assert!(self.current_frame_index.is_some());
 
         let current_frame = &mut self.frames[self.current_frame_index.unwrap()];
-        current_frame.end();
+        current_frame.end(data);
         self.current_frame_index = None;
     }
 
@@ -124,9 +125,9 @@ impl Frame {
         }
     }
 
-    fn begin(&mut self) {
+    fn begin(&mut self, data: FrameBegan) {
         assert_eq!(self.current_block_id, 0);
-        let current_counter = get_performance_counter();
+        let current_counter = data.counter;
         let root_block = root_block(self.frequency, current_counter);
         if let Some(ref mut block_tree) = self.block_tree {
             block_tree.clear(root_block);
@@ -135,42 +136,32 @@ impl Frame {
         }
     }
 
-    fn end(&mut self) {
+    fn end(&mut self, data: FrameEnded) {
         assert_eq!(self.current_block_id, 0);
-        let current_counter = get_performance_counter();
+        let current_counter = data.counter;
         let block_tree = self.block_tree.as_mut().unwrap();
         let mut root_block = block_tree.get_mut(0).unwrap();
         root_block.data().end = current_counter;
     }
 
-    pub fn begin_counter(&self) -> u64 {
+    fn begin_counter(&self) -> u64 {
         let block_tree = self.block_tree.as_ref().unwrap();
         let root_block_node = block_tree.get(0).unwrap();
         root_block_node.data().begin
-    }
-
-    pub fn delta(&self) -> f32 {
-        let block_tree = self.block_tree.as_ref().unwrap();
-        let root_block_node = block_tree.get(0).unwrap();
-        root_block_node.data().delta()
-    }
-
-    pub fn dfs_block_iter(&self) -> impl Iterator<Item=BlockRef> {
-        self.block_tree.as_ref().unwrap().dfs_iter()
     }
 
     pub fn root_block(&self) -> BlockRef {
         self.block_tree.as_ref().unwrap().root()
     }
 
-    pub fn open_block<N>(&mut self, file: &'static str, line: u32, name: N) where N: Into<String> {
+    fn on_block_opened(&mut self, data: BlockOpened) {
         let block_tree = self.block_tree.as_mut().unwrap();
 
-        let current_counter = get_performance_counter();
+        let current_counter = data.counter;
         let new_block = Block {
-            file,
-            line,
-            name: name.into(),
+            file: data.file,
+            line: data.line,
+            name: data.name,
             frequency: self.frequency,
             begin: current_counter,
             end: current_counter,
@@ -178,9 +169,9 @@ impl Frame {
         self.current_block_id = block_tree.push(self.current_block_id, new_block).unwrap();
     }
 
-    pub fn close_block(&mut self) {
+    fn on_block_closed(&mut self, data: BlockClosed) {
         let block_tree = self.block_tree.as_mut().unwrap();
-        let current_counter = get_performance_counter();
+        let current_counter = data.counter;
         let mut current_block_node = block_tree.get_mut(self.current_block_id).unwrap();
         current_block_node.data().end = current_counter;
         self.current_block_id = current_block_node.parent().unwrap().id();
@@ -215,12 +206,97 @@ impl Block {
     }
 }
 
+enum ProfileEvent {
+    BlockOpened(BlockOpened),
+    BlockClosed(BlockClosed),
+    FrameBegan(FrameBegan),
+    FrameEnded(FrameEnded),
+}
+
+struct BlockOpened {
+    counter: u64,
+    file: &'static str,
+    line: u32,
+    name: String,
+}
+
+struct BlockClosed {
+    counter: u64,
+}
+
+struct FrameBegan {
+    counter: u64,
+}
+
+struct FrameEnded {
+    counter: u64,
+}
+
+thread_local! {
+    static EVENTS: RefCell<Vec<ProfileEvent>> = RefCell::new(Vec::new());
+}
+
 pub fn open_block<N>(file: &'static str, line: u32, name: N) where N: Into<String> {
-    PROFILER.lock().unwrap().current_frame_mut().unwrap().open_block(file, line, name);
+    EVENTS.with(|events| {
+        events.borrow_mut().push(ProfileEvent::BlockOpened(BlockOpened {
+            counter: get_performance_counter(),
+            file,
+            line,
+            name: name.into(),
+        }));
+    });
 }
 
 pub fn close_block() {
-    PROFILER.lock().unwrap().current_frame_mut().unwrap().close_block();
+    EVENTS.with(|events| {
+        events.borrow_mut().push(ProfileEvent::BlockClosed(BlockClosed {
+            counter: get_performance_counter(),
+        }));
+    });
+}
+
+pub fn begin_frame() {
+    EVENTS.with(|events| {
+        events.borrow_mut().push(ProfileEvent::FrameBegan(FrameBegan {
+            counter: get_performance_counter(),
+        }));
+    });
+}
+
+pub fn end_frame() {
+    EVENTS.with(|events| {
+        events.borrow_mut().push(ProfileEvent::FrameEnded(FrameEnded {
+            counter: get_performance_counter(),
+        }));
+    });
+}
+
+pub fn last_frame() -> Option<Frame> {
+    PROFILER.lock().unwrap().last_frame().cloned()
+}
+
+pub fn last_counter() -> Option<u64> {
+    PROFILER.lock().unwrap().current_frame().map(|frame| frame.begin_counter())
+}
+
+pub fn reduce_profile_events() {
+    let mut profiler = PROFILER.lock().unwrap();
+
+    EVENTS.with(|events| {
+        let mut events = events.borrow_mut();
+        for event in events.drain(..) {
+            match event {
+                ProfileEvent::FrameBegan(data) => profiler.on_frame_began(data),
+                ProfileEvent::FrameEnded(data) => profiler.on_frame_ended(data),
+                ProfileEvent::BlockOpened(data) => if let Some(frame) = profiler.current_frame_mut() {
+                    frame.on_block_opened(data)
+                },
+                ProfileEvent::BlockClosed(data) => if let Some(frame) = profiler.current_frame_mut() {
+                    frame.on_block_closed(data)
+                },
+            }
+        }
+    })
 }
 
 #[macro_export]
