@@ -9,12 +9,17 @@ use gl::types::*;
 use profiler::profile;
 
 mod render_triangle;
+mod render_line;
 
 use crate::math::*;
 use crate::bitmap::*;
-use self::render_triangle::*;
+use self::render_triangle::RenderTriangleShader;
+use self::render_line::RenderLineShader;
 
-pub use self::render_triangle::{Vertex, Index};
+pub type TriangleVertex = render_triangle::Vertex;
+pub type TriangleIndex = render_triangle::Index;
+pub type LineVertex = render_line::Vertex;
+pub type LineIndex = render_line::Index;
 
 pub struct DisplayList {
     viewport: Rect2,
@@ -41,11 +46,18 @@ impl DisplayList {
         self.viewport
     }
 
-    pub fn render_triangles(&mut self, vertices: Vec<Vertex>, indices: Vec<Index>, texture: Option<TextureHandle>) {
+    pub fn render_triangles(&mut self, vertices: Vec<TriangleVertex>, indices: Vec<TriangleIndex>, texture: Option<TextureHandle>) {
         self.commands.push(RenderCommand::RenderTriangles(TriangleGroup {
             vertices,
             indices,
             texture,
+        }))
+    }
+
+    pub fn render_lines(&mut self, vertices: Vec<LineVertex>, indices: Vec<LineIndex>) {
+        self.commands.push(RenderCommand::RenderLines(LineGroup {
+            vertices,
+            indices,
         }))
     }
 }
@@ -98,36 +110,32 @@ impl Drop for OpenGLTexture {
 
 enum RenderCommand {
     RenderTriangles(TriangleGroup),
-    _Other,
+    RenderLines(LineGroup),
 }
 
 #[derive(Clone)]
 struct TriangleGroup {
-    pub vertices: Vec<Vertex>,
-    pub indices: Vec<Index>,
+    pub vertices: Vec<TriangleVertex>,
+    pub indices: Vec<TriangleIndex>,
     pub texture: Option<TextureHandle>,
+}
+
+#[derive(Clone)]
+struct LineGroup {
+    pub vertices: Vec<LineVertex>,
+    pub indices: Vec<LineIndex>,
 }
 
 
 pub struct Renderer {
     white1x1_texture: TextureHandle,
-    render_triangle_program: RenderTriangleShader
+    render_triangle_shader: RenderTriangleShader,
+    render_line_shader: RenderLineShader,
 }
 
 impl Renderer {
     pub fn load<F>(load_fn: F) -> Result<Self, Error> where F: FnMut(&str) -> *const c_void  {
         gl::load_with(load_fn);
-
-        unsafe {
-            gl::ClearColor(0.0, 0.0, 0.0, 0.0);
-            gl::Enable(gl::TEXTURE_2D);
-            gl::Enable(gl::FRAMEBUFFER_SRGB);
-
-            gl::Enable(gl::BLEND);
-            gl::BlendFunc(gl::ONE, gl::ONE_MINUS_SRC_ALPHA);
-
-            gl::Enable(gl::MULTISAMPLE);
-        }
 
         let white1x1_bitmap = Bitmap {
             width: 1,
@@ -140,7 +148,8 @@ impl Renderer {
 
         Ok(Renderer {
             white1x1_texture,
-            render_triangle_program: RenderTriangleShader::load()?
+            render_triangle_shader: RenderTriangleShader::load()?,
+            render_line_shader: RenderLineShader::load()?,
         })
     }
 
@@ -154,26 +163,45 @@ impl Renderer {
         let viewport_min = display_list.viewport.min;
         let viewport_size = display_list.viewport.size();
         unsafe {
+            gl::ClearColor(0.0, 0.0, 0.0, 0.0);
+            gl::Enable(gl::TEXTURE_2D);
+            gl::Enable(gl::FRAMEBUFFER_SRGB);
+
+            gl::Enable(gl::BLEND);
+            gl::BlendFunc(gl::ONE, gl::ONE_MINUS_SRC_ALPHA);
+
+            gl::Enable(gl::MULTISAMPLE);
+
             gl::Viewport(viewport_min.x as i32, viewport_min.y as i32, viewport_size.x as i32, viewport_size.y as i32);
             gl::Scissor(viewport_min.x as i32, viewport_min.y as i32, viewport_size.x as i32, viewport_size.y as i32);
             gl::Enable(gl::SCISSOR_TEST);
             gl::Clear(gl::COLOR_BUFFER_BIT);
         }
 
-        let mut triangle_groups = display_list.commands.iter().filter_map(|c| {
-            if let RenderCommand::RenderTriangles(triangle_group) = c {
-                Some(triangle_group)
-            } else {
-                None
+//        let mut triangle_groups = display_list.commands.iter().filter_map(|c| {
+//            if let RenderCommand::RenderTriangles(triangle_group) = c {
+//                Some(triangle_group)
+//            } else {
+//                None
+//            }
+//        }).collect::<Vec<_>>();
+//
+//        triangle_groups.sort_by(|a, b| a.texture.cmp(&b.texture));
+//
+//        let merged_triangle_groups = merge_triangle_groups(&triangle_groups);
+//
+//        for triangle_group in merged_triangle_groups.iter() {
+//            render_triangle_group(&mut self.render_triangle_shader, &self.white1x1_texture, triangle_group);
+//        }
+        for command in display_list.commands.iter() {
+            match command {
+                RenderCommand::RenderTriangles(triangle_group) => {
+                    render_triangle_group(&mut self.render_triangle_shader, &self.white1x1_texture, &triangle_group);
+                }
+                RenderCommand::RenderLines(line_group) => {
+                    render_line_group(&mut self.render_line_shader, &line_group);
+                }
             }
-        }).collect::<Vec<_>>();
-
-        triangle_groups.sort_by(|a, b| a.texture.cmp(&b.texture));
-
-        let merged_triangle_groups = merge_triangle_groups(&triangle_groups);
-
-        for triangle_group in merged_triangle_groups.iter() {
-            render_triangle_group(&mut self.render_triangle_program, &self.white1x1_texture, triangle_group);
         }
     }
 }
@@ -273,10 +301,15 @@ fn merge_triangle_groups(triangle_groups: &[&TriangleGroup]) -> Vec<TriangleGrou
     merged_triangle_groups
 }
 
-fn render_triangle_group(program: &mut RenderTriangleShader, white1x1_texture: &TextureHandle, triangle_group: &TriangleGroup) {
+fn render_triangle_group(shader: &mut RenderTriangleShader, white1x1_texture: &TextureHandle, triangle_group: &TriangleGroup) {
     let texture = triangle_group.texture.as_ref().unwrap_or(white1x1_texture);
-    program.set_vertices(&triangle_group.vertices, &triangle_group.indices);
-    program.render(texture.inner.id, 0, triangle_group.indices.len());
+    shader.upload_data(&triangle_group.vertices, &triangle_group.indices);
+    shader.render(texture.inner.id, 0, triangle_group.indices.len());
+}
+
+fn render_line_group(shader: &mut RenderLineShader, line_group: &LineGroup) {
+    shader.upload_data(&line_group.vertices, &line_group.indices);
+    shader.render(0, line_group.indices.len());
 }
 
 struct Shader {

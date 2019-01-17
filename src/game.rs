@@ -117,6 +117,14 @@ impl GameState {
     pub fn update(&mut self, input: &Input, renderer: &mut Renderer, dl: &mut DisplayList) {
         self.count += input.dt;
 
+        let mut path = Path::new();
+        path.move_to(100.0, 100.0)
+            .line_to(200.0, 200.0)
+            .line_to(220.0, 200.0)
+            .close();
+
+        stroke_path(dl, &path, Vec4::new(1.0, 1.0, 1.0, 1.0));
+
         {
             let texture = self.test_texture.clone();
             let texture_size = texture.size().as_vec2();
@@ -127,9 +135,9 @@ impl GameState {
             );
         }
 
-        {
-            dl.render_quad(Rect2::with_min_size(Vec2::zero(), Vec2::new(500.0, 500.0)), Vec4::new(1.0, 1.0, 1.0, 1.0));
-        }
+//        {
+//            dl.render_quad(Rect2::with_min_size(Vec2::zero(), Vec2::new(500.0, 500.0)), Vec4::new(1.0, 1.0, 1.0, 1.0));
+//        }
 
         let font_pixel_size = 16;
         let pos = Vec2::new(10.0, 20.0);
@@ -212,6 +220,93 @@ where
     Ok(())
 }
 
+struct StrokePathContext {
+    viewport_size: Vec2,
+    inv_viewport_size: Vec2,
+    current_sub_path_line_segments: Vec<Vec2>,
+    line_vertices: Vec<LineVertex>,
+    line_indices: Vec<LineIndex>,
+    color: Vec4,
+}
+
+impl StrokePathContext {
+    pub fn new(viewport: Rect2, color: Vec4) -> Self {
+        StrokePathContext {
+            viewport_size: viewport.size(),
+            inv_viewport_size: 1.0 / viewport.size(),
+            current_sub_path_line_segments: Vec::new(),
+            line_vertices: Vec::new(),
+            line_indices: Vec::new(),
+            color,
+        }
+    }
+
+    fn on_move_to(&mut self, x: Scalar, y: Scalar) {
+        self.finish_current_sub_path();
+        self.current_sub_path_line_segments.push(Vec2::new(x, y));
+    }
+
+    fn on_line_to(&mut self, x: Scalar, y: Scalar) {
+        self.ensure_sub_path(x, y);
+        self.current_sub_path_line_segments.push(Vec2::new(x, y));
+    }
+
+    fn on_close(&mut self) {
+        if self.current_sub_path_line_segments.len() > 1 {
+            let start = self.current_sub_path_line_segments[0];
+            self.on_line_to(start.x, start.y);
+        }
+        self.finish_current_sub_path();
+    }
+
+    fn ensure_sub_path(&mut self, x: Scalar, y: Scalar) {
+        if self.current_sub_path_line_segments.is_empty() {
+            self.current_sub_path_line_segments.push(Vec2::new(x, y));
+        }
+    }
+
+    fn finish_current_sub_path(&mut self) {
+        if self.current_sub_path_line_segments.len() > 1 {
+            let offset = self.line_vertices.len() as u32;
+
+            self.line_vertices.push(LineVertex {
+                pos: self.transform_pos(self.current_sub_path_line_segments[0]),
+                color: self.color,
+            });
+
+            for index in 1..self.current_sub_path_line_segments.len() {
+                self.line_vertices.push(LineVertex {
+                    pos: self.transform_pos(self.current_sub_path_line_segments[index]),
+                    color: self.color,
+                });
+                let index = index as u32 + offset;
+                self.line_indices.push(index - 1);
+                self.line_indices.push(index);
+            }
+        }
+        self.current_sub_path_line_segments.clear();
+    }
+
+    fn transform_pos(&self, pos: Vec2) -> Vec2 {
+        let pos = Vec2::new(pos.x, self.viewport_size.y - pos.y);
+        let pos = pos.hadamard(self.inv_viewport_size) * 2.0 - Vec2::new(1.0, 1.0);
+        pos
+    }
+}
+
+fn stroke_path(dl: &mut DisplayList, path: &Path, color: Vec4) {
+    let mut context = StrokePathContext::new(dl.viewport(), color);
+    for event in path.iter() {
+        match event {
+            &PathEvent::MoveTo { x, y } => context.on_move_to(x, y),
+            &PathEvent::LineTo { x, y } => context.on_line_to(x, y),
+            &PathEvent::Close => context.on_close(),
+        }
+    }
+    context.finish_current_sub_path();
+    dl.render_lines(context.line_vertices.clone(), context.line_indices.clone());
+}
+
 impl DisplayList {
     #[profile]
     pub fn render_textured_quad(&mut self, dst: Rect2, texture_region: TextureRegion, color: Vec4) {
@@ -251,28 +346,28 @@ impl DisplayList {
         let vertex_index = vertices.len() as u32;
 
         // Bottom Left
-        vertices.push(Vertex {
+        vertices.push(TriangleVertex {
             pos: Vec2::new(min.x, min.y),
             tex_coord: Vec2::new(tex_min.x, tex_min.y),
             color,
         });
 
         // Bottom Right
-        vertices.push(Vertex {
+        vertices.push(TriangleVertex {
             pos: Vec2::new(max.x, min.y),
             tex_coord: Vec2::new(tex_max.x, tex_min.y),
             color,
         });
 
         // Top Right
-        vertices.push(Vertex {
+        vertices.push(TriangleVertex {
             pos: Vec2::new(max.x, max.y),
             tex_coord: Vec2::new(tex_max.x, tex_max.y),
             color,
         });
 
         // Top Left
-        vertices.push(Vertex {
+        vertices.push(TriangleVertex {
             pos: Vec2::new(min.x, max.y),
             tex_coord: Vec2::new(tex_min.x, tex_max.y),
             color,
@@ -286,5 +381,67 @@ impl DisplayList {
         indices.push(vertex_index + 3);
 
         self.render_triangles(vertices, indices, texture);
+    }
+}
+
+#[derive(Debug)]
+pub struct Path {
+    events: Vec<PathEvent>,
+}
+
+#[derive(Debug)]
+pub enum PathEvent {
+    MoveTo { x: Scalar, y: Scalar },
+    LineTo { x: Scalar, y: Scalar },
+    Close,
+}
+
+impl Path {
+    pub fn new() -> Self {
+        Path {
+            events: Vec::new(),
+        }
+    }
+
+    /// The move_to(x, y) method must create a new subpath with the specified point as its first
+    /// (and only) point.
+    pub fn move_to(&mut self, x: Scalar, y: Scalar) -> &mut Path {
+        self.events.push(PathEvent::MoveTo { x, y });
+        self
+    }
+
+    pub fn line_to(&mut self, x: Scalar, y: Scalar) -> &mut Path {
+        self.events.push(PathEvent::LineTo { x, y });
+        self
+    }
+
+    /// The close() method must do nothing if the object's path has no subpaths. Otherwise, it must
+    /// mark the last subpath as closed, create a new subpath whose first point is the same as the
+    /// previous subpath's first point, and finally add this new subpath to the path.
+    pub fn close(&mut self) -> &mut Path {
+        self.events.push(PathEvent::Close);
+        self
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item=&PathEvent> {
+        PathIter {
+            path: self,
+            next: 0,
+        }
+    }
+}
+
+pub struct PathIter<'a> {
+    path: &'a Path,
+    next: usize,
+}
+
+impl<'a> Iterator for PathIter<'a> {
+    type Item = &'a PathEvent;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let result = self.path.events.get(self.next);
+        self.next = self.next + 1;
+        result
     }
 }
