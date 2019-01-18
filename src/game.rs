@@ -118,10 +118,11 @@ impl GameState {
         self.count += input.dt;
 
         let mut path = Path::new();
-        path.move_to(100.0, 100.0)
-            .line_to(200.0, 200.0)
-            .line_to(220.0, 200.0)
-            .close();
+        path.move_to(500.0, 200.0)
+            .line_to(700.0, 300.0)
+            .line_to(720.0, 400.0)
+            .move_to(600.0, 400.0)
+            .line_to(800.0, 250.0);
 
         stroke_path(dl, &path, Vec4::new(1.0, 1.0, 1.0, 1.0));
 
@@ -300,29 +301,10 @@ impl PolygonBuilder {
                 self.sub_paths.push(current_open_sub_path)
             }
         }
-//        if self.current_sub_path_line_segments.len() > 1 {
-//            let offset = self.line_vertices.len() as u32;
-//
-//            self.line_vertices.push(LineVertex {
-//                pos: self.transform_pos(self.current_sub_path_line_segments[0]),
-//                color: self.color,
-//            });
-//
-//            for index in 1..self.current_sub_path_line_segments.len() {
-//                self.line_vertices.push(LineVertex {
-//                    pos: self.transform_pos(self.current_sub_path_line_segments[index]),
-//                    color: self.color,
-//                });
-//                let index = index as u32 + offset;
-//                self.line_indices.push(index - 1);
-//                self.line_indices.push(index);
-//            }
-//        }
-//        self.current_sub_path_line_segments.clear();
     }
 }
 
-fn stroke_path(dl: &mut DisplayList, path: &Path, color: Vec4) {
+fn build_polygons(path: &Path) -> Vec<Polygon> {
     let mut polygon_builder = PolygonBuilder::new();
     for event in path.iter() {
         match event {
@@ -331,7 +313,12 @@ fn stroke_path(dl: &mut DisplayList, path: &Path, color: Vec4) {
             &PathCommand::Close => polygon_builder.on_close(),
         }
     }
-    let polygons = polygon_builder.build();
+    polygon_builder.build()
+}
+
+#[profile]
+fn stroke_path(dl: &mut DisplayList, path: &Path, color: Vec4) {
+    let polygons = build_polygons(path);
 
     // DEBUG draw polygon edges
     {
