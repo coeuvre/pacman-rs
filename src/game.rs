@@ -10,12 +10,14 @@ use crate::renderer::*;
 use crate::bitmap::*;
 use crate::math::*;
 use crate::asset;
+use crate::canvas::*;
 
 pub struct Input {
     pub dt: f32
 }
 
 pub struct GameState {
+    canvas: Canvas,
     face: Face,
     count: f32,
     test_texture: TextureHandle,
@@ -107,6 +109,7 @@ impl GameState {
         let ft_library = freetype::Library::init()?;
         let face = Face::load(&ft_library, "assets://test_font.otf")?;
         Ok(GameState {
+            canvas: Canvas::new(),
             face,
             count: 0.0,
             test_texture: texture,
@@ -116,6 +119,11 @@ impl GameState {
     #[profile]
     pub fn update(&mut self, input: &Input, renderer: &mut Renderer, dl: &mut DisplayList) {
         self.count += input.dt;
+
+        self.canvas.begin_path();
+        self.canvas.move_to(500.0, 200.0);
+        self.canvas.line_to(700.0, 400.0);
+        self.canvas.stroke();
 
         let mut path = Path::new();
         path.move_to(500.0, 200.0)
@@ -181,7 +189,7 @@ fn render_block(renderer: &mut Renderer, dl: &mut DisplayList,
     pos.y = pos.y + font_pixel_size as f32;
 
     for child in block.children() {
-        if child.index() < 10 && child.level() < 4 {
+        if child.index() < 10 && child.level() < 3 {
             render_block(renderer, dl, face, font_pixel_size, &child, pos);
         } else {
             let mut text_pos = *pos + Vec2::new(20.0 * child.level() as f32, 0.0);
