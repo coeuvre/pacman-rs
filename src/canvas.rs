@@ -1,3 +1,89 @@
+pub struct StrokeParams {
+    pub inner_color: Color,
+    pub outer_color: Color,
+}
+
+pub trait CanvasRenderer {
+    fn render_stroke(&mut self, paths: PathsRef, params: StrokeParams);
+}
+
+#[derive(Copy, Clone)]
+pub struct Color {
+    pub r: Scalar,
+    pub g: Scalar,
+    pub b: Scalar,
+    pub a: Scalar,
+}
+
+pub fn rgba(r: Scalar, g: Scalar, b: Scalar, a: Scalar) -> Color {
+    Color { r, g, b, a }
+}
+
+pub struct PathsRef<'a> {
+    cache: &'a PathCache,
+    stroke: bool,
+}
+
+impl<'a> PathsRef<'a> {
+    pub fn iter(&self) -> impl Iterator<Item=Path> {
+        PathIter {
+            cache: self.cache,
+            index: 0,
+            stroke: self.stroke,
+        }
+    }
+}
+
+pub struct PathIter<'a> {
+    cache: &'a PathCache,
+    index: usize,
+    stroke: bool,
+}
+
+impl<'a> Iterator for PathIter<'a> {
+    type Item = Path<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(path) = self.cache.paths.get(self.index) {
+            self.index += 1;
+            let vertex_ref = if self.stroke {
+                path.stroke.as_ref().unwrap()
+            } else {
+                path.fill.as_ref().unwrap()
+            };
+            Some(Path {
+                path,
+                verts: &self.cache.verts,
+                first: vertex_ref.first,
+                count: vertex_ref.count,
+            })
+        } else {
+            None
+        }
+    }
+}
+
+pub struct Path<'a> {
+    path: &'a PathBuilder,
+    verts: &'a [Vertex],
+    first: usize,
+    count: usize,
+}
+
+impl<'a> Path<'a> {
+    pub fn verts(&self) -> &[Vertex] {
+        &self.verts[self.first..(self.first + self.count)]
+    }
+
+    pub fn closed(&self) -> bool {
+        self.path.closed
+    }
+
+    pub fn convex(&self) -> bool {
+        self.path.convex
+    }
+}
+
 type Scalar = f32;
 
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -25,21 +111,53 @@ pub struct Canvas {
     commands: Vec<Command>,
     state: State,
     cache: PathCache,
+    pixels_per_point: Scalar,
     tess_tol: Scalar,
+    fringe: Scalar,
 }
 
 impl Canvas {
     pub fn new() -> Canvas {
-        Canvas {
+        let mut canvas = Canvas {
             commands: Vec::new(),
             state: State::default(),
             cache: PathCache::new(),
+            pixels_per_point: 0.0,
             tess_tol: 0.0,
-        }
+            fringe: 0.0,
+        };
+
+        canvas.set_pixels_per_point(1.0);
+
+        canvas
+    }
+
+    pub fn set_pixels_per_point(&mut self, pixels_per_point: Scalar) {
+        self.pixels_per_point = pixels_per_point;
+        self.tess_tol = 0.25 / pixels_per_point;
+//        self.dist_tol = 0.01 / pixels_per_point;
+        self.fringe = 1.0 / pixels_per_point;
     }
 
     pub fn set_line_width(&mut self, line_width: Scalar) {
         self.state.line_width = line_width;
+    }
+
+    pub fn set_line_cap(&mut self, line_cap: LineCap) {
+        self.state.line_cap = line_cap;
+    }
+
+    pub fn set_line_join(&mut self, line_join: LineJoin) {
+        self.state.line_join = line_join;
+    }
+
+    pub fn set_stroke_color(&mut self, color: Color) {
+        self.state.paint.inner_color = color;
+        self.state.paint.outer_color = color;
+    }
+
+    pub fn set_shape_anti_alias(&mut self, enabled: bool) {
+        self.state.shape_anti_alias = enabled;
     }
 
     pub fn begin_path(&mut self) {
@@ -63,11 +181,22 @@ impl Canvas {
         self.commands.push(Command::Close)
     }
 
-    pub fn stroke(&mut self) {
+    pub fn stroke<R>(&mut self, renderer: &mut R) where R: CanvasRenderer {
         self.cache.flatten_paths(self.commands.iter(), self.tess_tol);
         let state = &self.state;
 
-        self.cache.expand_stroke(state.line_width * 0.5, 0.0, state.line_cap, state.line_join, state.miter_limit, self.tess_tol);
+        let fringe = if state.shape_anti_alias {
+            self.fringe
+        } else {
+            0.0
+        };
+        self.cache.expand_stroke(state.line_width * 0.5, fringe, state.line_cap, state.line_join, state.miter_limit, self.tess_tol);
+
+        let params = StrokeParams {
+            inner_color: self.state.paint.inner_color,
+            outer_color: self.state.paint.outer_color,
+        };
+        renderer.render_stroke(PathsRef { cache: &self.cache, stroke: true }, params);
     }
 }
 
@@ -84,6 +213,8 @@ struct State {
     line_cap: LineCap,
     line_join: LineJoin,
     miter_limit: Scalar,
+    paint: Paint,
+    shape_anti_alias: bool,
 }
 
 impl Default for State {
@@ -93,11 +224,21 @@ impl Default for State {
             line_cap: LineCap::Butt,
             line_join: LineJoin::Miter,
             miter_limit: 10.0,
+            paint: Paint {
+                inner_color: rgba(0.0, 0.0, 0.0, 0.0),
+                outer_color: rgba(0.0, 0.0, 0.0, 0.0),
+            },
+            shape_anti_alias: true
         }
     }
 }
 
-struct Path {
+struct Paint {
+    inner_color: Color,
+    outer_color: Color,
+}
+
+struct PathBuilder {
     first: usize,
     count: usize,
     closed: bool,
@@ -115,8 +256,8 @@ struct PathVertexRef {
 
 struct PathCache {
     points: Vec<Point>,
-    paths: Vec<Path>,
     verts: Vec<Vertex>,
+    paths: Vec<PathBuilder>,
     bounds: [Scalar; 4],
 }
 
@@ -124,8 +265,8 @@ impl PathCache {
     fn new() -> PathCache {
         PathCache {
             points: Vec::new(),
-            paths: Vec::new(),
             verts: Vec::new(),
+            paths: Vec::new(),
             bounds: [0.0, 0.0, 0.0, 0.0],
         }
     }
@@ -364,7 +505,7 @@ impl PathCache {
     }
 
     fn add_path(&mut self) {
-        let path = Path {
+        let path = PathBuilder {
             first: self.points.len(),
             count: 0,
             closed: false,
@@ -421,6 +562,7 @@ impl PathCache {
     }
 }
 
+#[derive(Clone)]
 pub struct Vertex {
     pub x: Scalar,
     pub y: Scalar,
@@ -457,14 +599,14 @@ fn polygon_area(points: &[Point]) -> Scalar {
     for i in 2..points.len() {
         let b = &points[i - 1];
         let c = &points[i];
-        area += triangle_area(a.x, a.y, b.x, b.y, c.x, c.y);
+        area += triangle_area2(a.x, a.y, b.x, b.y, c.x, c.y);
     }
 
     area * 0.5
 }
 
 #[inline(always)]
-fn triangle_area(ax: Scalar, ay: Scalar, bx: Scalar, by: Scalar, cx: Scalar, cy: Scalar) -> Scalar {
+fn triangle_area2(ax: Scalar, ay: Scalar, bx: Scalar, by: Scalar, cx: Scalar, cy: Scalar) -> Scalar {
     let abx = bx - ax;
     let aby = by - ay;
     let acx = cx - ax;

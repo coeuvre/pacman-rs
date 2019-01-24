@@ -120,29 +120,18 @@ impl GameState {
     pub fn update(&mut self, input: &Input, renderer: &mut Renderer, dl: &mut DisplayList) {
         self.count += input.dt;
 
-        self.canvas.begin_path();
-        self.canvas.move_to(500.0, 200.0);
-        self.canvas.line_to(700.0, 400.0);
-        self.canvas.stroke();
+//        draw_lines(&mut self.canvas, dl, 600.0, 300.0, 600.0, 50.0, self.count);
 
-        let mut path = Path::new();
-        path.move_to(500.0, 200.0)
-            .line_to(700.0, 300.0)
-            .line_to(720.0, 400.0)
-            .move_to(600.0, 400.0)
-            .line_to(800.0, 250.0);
-
-        stroke_path(dl, &path, Vec4::new(1.0, 1.0, 1.0, 1.0));
-
-        {
-            let texture = self.test_texture.clone();
-            let texture_size = texture.size().as_vec2();
-            dl.render_textured_quad(
-                Rect2::with_min_size(Vec2::new(200.0, 10.0 + 10.0 * self.count), texture_size),
-                texture.whole_texture(),
-                Vec4::new(1.0, 1.0, 1.0, 1.0),
-            );
-        }
+        draw_widths(&mut self.canvas, dl, 500.0, 300.0, 30.0);
+//        {
+//            let texture = self.test_texture.clone();
+//            let texture_size = texture.size().as_vec2();
+//            dl.render_textured_quad(
+//                Rect2::with_min_size(Vec2::new(200.0, 10.0 + 10.0 * self.count), texture_size),
+//                texture.whole_texture(),
+//                Vec4::new(1.0, 1.0, 1.0, 1.0),
+//            );
+//        }
 
 //        {
 //            dl.render_quad(Rect2::with_min_size(Vec2::zero(), Vec2::new(500.0, 500.0)), Vec4::new(1.0, 1.0, 1.0, 1.0));
@@ -156,6 +145,72 @@ impl GameState {
         if let Some(last_frame) = last_frame {
             render_frame_profile(renderer, dl, &mut self.face, &last_frame, pos, font_pixel_size);
         }
+    }
+}
+
+#[profile]
+fn draw_lines(canvas: &mut Canvas, dl: &mut DisplayList, x: Scalar, y: Scalar, w: Scalar, _h: Scalar, t: Scalar) {
+    let pad = 5.0;
+    let s = w / 9.0 - pad * 2.0;
+    let joins = [LineJoin::Miter];
+    let caps = [LineCap::Butt];
+
+    let pts = [
+        -s * 0.25 + (t * 0.3).cos() * s * 0.5,
+        (t * 0.3).sin() * s * 0.5,
+        -s * 0.25,
+        0.0,
+        s * 0.25,
+        0.0,
+        s * 0.25 + (-t * 0.3).cos() * s * 0.5,
+        (-t * 0.3).sin() * s * 0.5,
+    ];
+
+    for (i,join) in joins.iter().enumerate() {
+        for (j, cap) in caps.iter().enumerate() {
+            let fx = x + s * 0.5 + (i * 3 + j) as Scalar / 9.0 * w + pad;
+            let fy = y - s * 0.5 + pad;
+
+            canvas.set_line_cap(*cap);
+            canvas.set_line_join(*join);
+
+            canvas.set_line_width(s * 0.3);
+            canvas.set_stroke_color(rgba(0.0, 0.0, 0.0, 0.6));
+
+            canvas.begin_path();
+            canvas.move_to(fx + pts[0], fy + pts[1]);
+            canvas.line_to(fx + pts[2], fy + pts[3]);
+            canvas.line_to(fx + pts[4], fy + pts[5]);
+            canvas.line_to(fx + pts[6], fy + pts[7]);
+            canvas.stroke(dl);
+
+            canvas.set_line_cap(LineCap::Butt);
+            canvas.set_line_join(LineJoin::Miter);
+
+            canvas.set_line_width(1.0);
+            canvas.set_stroke_color(rgba(0.0, 0.75, 1.0, 1.0));
+            canvas.begin_path();
+            canvas.move_to(fx + pts[0], fy + pts[1]);
+            canvas.line_to(fx + pts[2], fy + pts[3]);
+            canvas.line_to(fx + pts[4], fy + pts[5]);
+            canvas.line_to(fx + pts[6], fy + pts[7]);
+            canvas.stroke(dl);
+        }
+    }
+}
+
+#[profile]
+fn draw_widths(canvas: &mut Canvas, dl: &mut DisplayList, x: Scalar, mut y: Scalar, length: Scalar) {
+    canvas.set_stroke_color(rgba(0.0, 0.0, 0.0, 1.0));
+
+    for i in 0..20 {
+        let width = (i as f32 + 0.5) * 0.1;
+        canvas.set_line_width(width);
+        canvas.begin_path();
+        canvas.move_to(x, y);
+        canvas.line_to(x + length, y + length * 0.3);
+        canvas.stroke(dl);
+        y += 10.0;
     }
 }
 
@@ -229,146 +284,6 @@ where
     Ok(())
 }
 
-struct Polygon {
-    vertices: Vec<Vec2>,
-    closed: bool,
-}
-
-impl Polygon {
-    pub fn new() -> Self {
-        Polygon {
-            vertices: Vec::new(),
-            closed: false
-        }
-    }
-
-    pub fn add_vertex(&mut self, x: Scalar, y: Scalar) {
-        self.vertices.push(Vec2::new(x, y));
-    }
-
-    pub fn close(&mut self) {
-        self.closed = true
-    }
-}
-
-struct PolygonBuilder {
-    current_sub_path: Option<Polygon>,
-    sub_paths: Vec<Polygon>,
-}
-
-impl PolygonBuilder {
-    pub fn new() -> Self {
-        PolygonBuilder {
-            current_sub_path: None,
-            sub_paths: Vec::new(),
-        }
-    }
-
-    pub fn on_move_to(&mut self, x: Scalar, y: Scalar) {
-        self.finish_current_sub_path();
-
-        let mut new_sub_path = Polygon::new();
-        new_sub_path.add_vertex(x, y);
-        self.current_sub_path = Some(new_sub_path);
-    }
-
-    pub fn on_line_to(&mut self, x: Scalar, y: Scalar) {
-        self.ensure_sub_path(x, y);
-        self.current_sub_path.as_mut().unwrap().add_vertex(x, y);
-    }
-
-    pub fn on_close(&mut self) {
-        let last_move_to;
-
-        if let Some(ref mut current_sub_path) = self.current_sub_path {
-            current_sub_path.close();
-            last_move_to = Some(*current_sub_path.vertices.first().unwrap());
-        } else {
-            last_move_to = None;
-        }
-
-        if let Some(last_move_to) = last_move_to {
-            self.on_move_to(last_move_to.x, last_move_to.y);
-        }
-    }
-
-    pub fn build(mut self) -> Vec<Polygon> {
-        self.finish_current_sub_path();
-        self.sub_paths
-    }
-
-    fn ensure_sub_path(&mut self, x: Scalar, y: Scalar) {
-        if self.current_sub_path.is_none() {
-            self.on_move_to(x, y);
-        }
-    }
-
-    fn finish_current_sub_path(&mut self) {
-        if let Some(current_open_sub_path) = self.current_sub_path.take() {
-            if current_open_sub_path.vertices.len() > 1 {
-                self.sub_paths.push(current_open_sub_path)
-            }
-        }
-    }
-}
-
-fn build_polygons(path: &Path) -> Vec<Polygon> {
-    let mut polygon_builder = PolygonBuilder::new();
-    for event in path.iter() {
-        match event {
-            &PathCommand::MoveTo { x, y } => polygon_builder.on_move_to(x, y),
-            &PathCommand::LineTo { x, y } => polygon_builder.on_line_to(x, y),
-            &PathCommand::Close => polygon_builder.on_close(),
-        }
-    }
-    polygon_builder.build()
-}
-
-#[profile]
-fn stroke_path(dl: &mut DisplayList, path: &Path, color: Vec4) {
-    let polygons = build_polygons(path);
-
-    // DEBUG draw polygon edges
-    {
-        let viewport_size = dl.viewport().size();
-        let inv_viewport_size = 1.0 / viewport_size;
-        let transform_pos = |pos: Vec2| {
-            let pos = Vec2::new(pos.x, viewport_size.y - pos.y);
-            let pos = pos.hadamard(inv_viewport_size) * 2.0 - Vec2::new(1.0, 1.0);
-            pos
-        };
-        let mut vertices = Vec::new();
-        let mut indices = Vec::new();
-
-        for polygon in polygons.iter() {
-            let offset = vertices.len() as u32;
-
-            vertices.push(LineVertex {
-                pos: transform_pos(polygon.vertices[0]),
-                color,
-            });
-
-            for index in 1..polygon.vertices.len() {
-                vertices.push(LineVertex {
-                    pos: transform_pos(polygon.vertices[index]),
-                    color,
-                });
-                let index = index as u32 + offset;
-                indices.push(index - 1);
-                indices.push(index);
-            }
-
-            if polygon.closed {
-                let last = polygon.vertices.len() as u32 - 1;
-                indices.push(last + offset);
-                indices.push(offset);
-            }
-        }
-
-
-        dl.render_lines(vertices, indices);
-    }
-}
 
 impl DisplayList {
     #[profile]
@@ -447,64 +362,41 @@ impl DisplayList {
     }
 }
 
-#[derive(Debug)]
-pub struct Path {
-    commands: Vec<PathCommand>,
-}
+impl CanvasRenderer for DisplayList {
+    #[profile]
+    fn render_stroke(&mut self, paths: PathsRef, params: StrokeParams) {
+        let nverts = paths.iter().map(|path| path.verts().len()).sum();
+        let nindices = (nverts - 2) * 3;
+        let mut verts = Vec::with_capacity(nverts);
+        let mut indices = Vec::with_capacity(nindices);
 
-#[derive(Debug)]
-pub enum PathCommand {
-    MoveTo { x: Scalar, y: Scalar },
-    LineTo { x: Scalar, y: Scalar },
-    Close,
-}
+        let viewport_size = self.viewport().size();
+        let inv_viewport_size = 1.0 / viewport_size;
+        let transform_pos = |pos: Vec2| {
+            let pos = Vec2::new(pos.x, viewport_size.y - pos.y);
+            let pos = pos.hadamard(inv_viewport_size) * 2.0 - Vec2::new(1.0, 1.0);
+            pos
+        };
 
-impl Path {
-    pub fn new() -> Self {
-        Path {
-            commands: Vec::new(),
+        for path in paths.iter() {
+            let offset = verts.len();
+            let ntriangles = path.verts().len();
+            verts.extend(path.verts().iter().map(|vert| {
+                let color = &params.outer_color;
+                TriangleVertex {
+                    pos: transform_pos(Vec2::new(vert.x, vert.y)),
+                    tex_coord: Vec2::new(vert.u, vert.v),
+                    color: Vec4::new(color.r, color.g, color.b, color.a),
+                }
+            }));
+
+            for index in 0..(ntriangles - 2) {
+                indices.push((index + offset) as u32);
+                indices.push((index + 1 + offset) as u32);
+                indices.push((index + 2 + offset) as u32);
+            }
         }
-    }
 
-    /// The move_to(x, y) method must create a new subpath with the specified point as its first
-    /// (and only) point.
-    pub fn move_to(&mut self, x: Scalar, y: Scalar) -> &mut Path {
-        self.commands.push(PathCommand::MoveTo { x, y });
-        self
-    }
-
-    pub fn line_to(&mut self, x: Scalar, y: Scalar) -> &mut Path {
-        self.commands.push(PathCommand::LineTo { x, y });
-        self
-    }
-
-    /// The close() method must do nothing if the object's path has no subpaths. Otherwise, it must
-    /// mark the last subpath as closed, create a new subpath whose first point is the same as the
-    /// previous subpath's first point, and finally add this new subpath to the path.
-    pub fn close(&mut self) -> &mut Path {
-        self.commands.push(PathCommand::Close);
-        self
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item=&PathCommand> {
-        PathCommandIter {
-            path: self,
-            next: 0,
-        }
-    }
-}
-
-pub struct PathCommandIter<'a> {
-    path: &'a Path,
-    next: usize,
-}
-
-impl<'a> Iterator for PathCommandIter<'a> {
-    type Item = &'a PathCommand;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let result = self.path.commands.get(self.next);
-        self.next = self.next + 1;
-        result
+        self.render_triangles(verts, indices, None);
     }
 }

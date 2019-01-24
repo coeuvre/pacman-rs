@@ -138,6 +138,7 @@ impl RenderTriangleShader {
 
     pub fn render(&mut self, texture_id: GLuint, start: usize, len: usize) {
         unsafe {
+//            gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
             gl::ActiveTexture(gl::TEXTURE0);
             gl::BindTexture(gl::TEXTURE_2D, texture_id);
             self.program.active();

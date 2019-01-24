@@ -126,7 +126,6 @@ struct LineGroup {
     pub indices: Vec<LineIndex>,
 }
 
-
 pub struct Renderer {
     white1x1_texture: TextureHandle,
     render_triangle_shader: RenderTriangleShader,
@@ -163,7 +162,6 @@ impl Renderer {
         let viewport_min = display_list.viewport.min;
         let viewport_size = display_list.viewport.size();
         unsafe {
-            gl::ClearColor(0.0, 0.0, 0.0, 0.0);
             gl::Enable(gl::TEXTURE_2D);
             gl::Enable(gl::FRAMEBUFFER_SRGB);
 
@@ -175,6 +173,8 @@ impl Renderer {
             gl::Viewport(viewport_min.x as i32, viewport_min.y as i32, viewport_size.x as i32, viewport_size.y as i32);
             gl::Scissor(viewport_min.x as i32, viewport_min.y as i32, viewport_size.x as i32, viewport_size.y as i32);
             gl::Enable(gl::SCISSOR_TEST);
+
+            gl::ClearColor(1.0, 1.0, 1.0, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
         }
 
