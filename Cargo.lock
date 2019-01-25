@@ -248,6 +248,7 @@ dependencies = [
  "freetype-rs 0.19.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "gl 1.0.0",
  "profiler 0.1.0",
+ "rdraw 0.1.0 (git+https://github.com/coeuvre/rdraw)",
  "sdl2-sys 0.32.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "stb-sys 0.1.0",
 ]
@@ -290,6 +291,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "proc-macro2 0.4.24 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "rdraw"
+version = "0.1.0"
+source = "git+https://github.com/coeuvre/rdraw#f7e4fc06f04f4ec0158b3e633c6c626ca0f7036e"
 
 [[package]]
 name = "redox_syscall"
@@ -484,6 +490,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum pkg-config 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)" = "676e8eb2b1b4c9043511a9b7bea0915320d7e502b0a079fb03f9635a5252b18c"
 "checksum proc-macro2 0.4.24 (registry+https://github.com/rust-lang/crates.io-index)" = "77619697826f31a02ae974457af0b29b723e5619e113e9397b8b82c6bd253f09"
 "checksum quote 0.6.10 (registry+https://github.com/rust-lang/crates.io-index)" = "53fa22a1994bd0f9372d7a816207d8a2677ad0325b073f5c5332760f0fb62b5c"
+"checksum rdraw 0.1.0 (git+https://github.com/coeuvre/rdraw)" = "<none>"
 "checksum redox_syscall 0.1.44 (registry+https://github.com/rust-lang/crates.io-index)" = "a84bcd297b87a545980a2d25a0beb72a1f490c31f0a9fde52fca35bfbb1ceb70"
 "checksum regex 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "37e7cbbd370869ce2e8dff25c7018702d10b21a20ef7135316f8daecd6c25b7f"
 "checksum regex-syntax 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)" = "4e47a2ed29da7a9e1960e1639e7a982e6edc6d49be308a3b02daf511504a16d1"

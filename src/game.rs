@@ -5,12 +5,12 @@ use std::collections::{
 
 use failure::Error;
 use profiler::{last_frame, profile, Frame, BlockRef};
+use rdraw::*;
 
 use crate::renderer::*;
 use crate::bitmap::*;
 use crate::math::*;
 use crate::asset;
-use crate::canvas::*;
 
 pub struct Input {
     pub dt: f32
@@ -120,9 +120,13 @@ impl GameState {
     pub fn update(&mut self, input: &Input, renderer: &mut Renderer, dl: &mut DisplayList) {
         self.count += input.dt;
 
-        draw_lines(&mut self.canvas, dl, 600.0, 300.0, 600.0, 50.0, self.count);
+        let canvas = &mut self.canvas;
 
-        draw_widths(&mut self.canvas, dl, 500.0, 300.0, 30.0);
+        draw_graph(canvas, dl, 400.0, 50.0, 500.0, 200.0, self.count);
+
+        draw_lines(canvas, dl, 600.0, 300.0, 600.0, 50.0, self.count);
+
+        draw_widths(canvas, dl, 500.0, 300.0, 30.0);
 //        {
 //            let texture = self.test_texture.clone();
 //            let texture_size = texture.size().as_vec2();
@@ -152,8 +156,8 @@ impl GameState {
 fn draw_lines(canvas: &mut Canvas, dl: &mut DisplayList, x: Scalar, y: Scalar, w: Scalar, _h: Scalar, t: Scalar) {
     let pad = 5.0;
     let s = w / 9.0 - pad * 2.0;
-    let joins = [LineJoin::Miter, LineJoin::Round];
-    let caps = [LineCap::Butt];
+    let joins = [LineJoin::Miter, LineJoin::Round, LineJoin::Bevel];
+    let caps = [LineCap::Butt, LineCap::Round, LineCap::Square];
 
     let pts = [
         -s * 0.25 + (t * 0.3).cos() * s * 0.5,
@@ -175,43 +179,112 @@ fn draw_lines(canvas: &mut Canvas, dl: &mut DisplayList, x: Scalar, y: Scalar, w
             canvas.set_line_join(*join);
 
             canvas.set_line_width(s * 0.3);
-            canvas.set_stroke_color(rgba(0.0, 0.0, 0.0, 0.6));
+            canvas.set_stroke_color(Color::rgba(0, 0, 0, 160));
 
-            canvas.begin_path();
-            canvas.move_to(fx + pts[0], fy + pts[1]);
-            canvas.line_to(fx + pts[2], fy + pts[3]);
-            canvas.line_to(fx + pts[4], fy + pts[5]);
-            canvas.line_to(fx + pts[6], fy + pts[7]);
-            canvas.stroke(dl);
+            canvas.begin_path()
+                  .move_to(fx + pts[0], fy + pts[1])
+                  .line_to(fx + pts[2], fy + pts[3])
+                  .line_to(fx + pts[4], fy + pts[5])
+                  .line_to(fx + pts[6], fy + pts[7])
+                  .stroke(dl);
 
             canvas.set_line_cap(LineCap::Butt);
             canvas.set_line_join(LineJoin::Miter);
 
             canvas.set_line_width(1.0);
-            canvas.set_stroke_color(rgba(0.0, 0.75, 1.0, 1.0));
-            canvas.begin_path();
-            canvas.move_to(fx + pts[0], fy + pts[1]);
-            canvas.line_to(fx + pts[2], fy + pts[3]);
-            canvas.line_to(fx + pts[4], fy + pts[5]);
-            canvas.line_to(fx + pts[6], fy + pts[7]);
-            canvas.stroke(dl);
+            canvas.set_stroke_color(Color::rgba(0, 192, 255, 255));
+            canvas.begin_path()
+                  .move_to(fx + pts[0], fy + pts[1])
+                  .line_to(fx + pts[2], fy + pts[3])
+                  .line_to(fx + pts[4], fy + pts[5])
+                  .line_to(fx + pts[6], fy + pts[7])
+                  .stroke(dl);
         }
     }
 }
 
 #[profile]
 fn draw_widths(canvas: &mut Canvas, dl: &mut DisplayList, x: Scalar, mut y: Scalar, length: Scalar) {
-    canvas.set_stroke_color(rgba(0.0, 0.0, 0.0, 1.0));
+    canvas.set_stroke_color(Color::rgba(0, 0, 0, 255));
 
     for i in 0..20 {
         let width = (i as f32 + 0.5) * 0.1;
         canvas.set_line_width(width);
-        canvas.begin_path();
-        canvas.move_to(x, y);
-        canvas.line_to(x + length, y + length * 0.3);
-        canvas.stroke(dl);
+        canvas.begin_path()
+              .move_to(x, y)
+              .line_to(x + length, y + length * 0.3)
+              .stroke(dl);
         y += 10.0;
     }
+}
+
+#[profile]
+fn draw_graph(canvas: &mut Canvas, dl: &mut DisplayList, x: Scalar, y: Scalar, w: Scalar, h: Scalar, t: Scalar) {
+    let samples = [
+        (1.0 + (t * 1.2345 + (t * 0.33457).cos() * 0.44).sin()) * 0.5,
+        (1.0 + (t * 0.68363 + (t * 1.3).cos() * 1.55).sin()) * 0.5,
+        (1.0 + (t * 1.1642 + (t * 0.33457).cos() * 1.24).sin()) * 0.5,
+        (1.0 + (t * 0.56345 + (t * 1.63).cos() * 0.14).sin()) * 0.5,
+        (1.0 + (t * 1.6245 + (t * 0.254).cos() * 0.3).sin()) * 0.5,
+        (1.0 + (t * 0.345 + (t * 0.03).cos() * 0.6).sin()) * 0.5,
+    ];
+    let dx = w / 5.0;
+
+    let mut sx = [0.0; 6];
+    let mut sy = [0.0; 6];
+    for i in 0..6 {
+        sx[i] = x + i as Scalar * dx;
+        sy[i] = y + h * samples[i] * 0.8;
+    }
+
+    // Graph background
+//    canvas.begin_path()
+//        .move_to(sx[0], sy[0]);
+//    for i in 1..6 {
+//        canvas.bezier_to(sx[i - 1] + dx * 0.5, sy[i - 1], sx[i] - dx * 0.5, sy[i], sx[i], sy[i]);
+//    }
+//    canvas.line_to(x + w, y + h)
+//        .line_to(x, y + h);
+//        .fill(dl);
+
+    // Graph line
+    canvas.begin_path()
+        .move_to(sx[0], sy[0] + 2.0);
+
+    for i in 1..6 {
+        canvas.bezier_to(sx[i - 1] + dx * 0.5, sy[i - 1] + 2.0, sx[i] - dx * 0.5, sy[i] + 2.0, sx[i], sy[i] + 2.0);
+    }
+    canvas.set_stroke_color(Color::rgba(0, 0, 0, 32));
+    canvas.set_line_width(3.0);
+    canvas.stroke(dl);
+
+    canvas.begin_path()
+        .move_to(sx[0], sy[0]);
+    for i in 1..6 {
+        canvas.bezier_to(sx[i - 1] + dx * 0.5, sy[i - 1], sx[i] - dx * 0.5, sy[i], sx[i], sy[i]);
+    }
+    canvas.set_stroke_color(Color::rgba(0, 160, 192, 255));
+    canvas.set_line_width(3.0);
+    canvas.stroke(dl);
+//// Graph sample pos
+//for (i = 0; i < 6; i++) {
+//nvgBeginPath(vg);
+//nvgRect(vg, sx[i]-10, sy[i]-10+2, 20,20);
+//nvgFill(vg);
+//}
+//
+//nvgBeginPath(vg);
+//for (i = 0; i < 6; i++)
+//nvgCircle(vg, sx[i], sy[i], 4.0f);
+//nvgFillColor(vg, nvgRGBA(0,160,192,255));
+//nvgFill(vg);
+//nvgBeginPath(vg);
+//for (i = 0; i < 6; i++)
+//nvgCircle(vg, sx[i], sy[i], 2.0f);
+//nvgFillColor(vg, nvgRGBA(220,220,220,255));
+//nvgFill(vg);
+//
+//nvgStrokeWidth(vg, 1.0f);
 }
 
 #[profile]
@@ -362,10 +435,10 @@ impl DisplayList {
     }
 }
 
-impl CanvasRenderer for DisplayList {
+impl StrokeRenderer for DisplayList {
     #[profile]
-    fn render_stroke(&mut self, paths: PathsRef, params: StrokeParams) {
-        let nverts = paths.iter().map(|path| path.verts().len()).sum();
+    fn render(&mut self, stroke: Stroke) {
+        let nverts = stroke.path_iter().map(|path| path.verts().len()).sum();
         let nindices = (nverts - 2) * 3;
         let mut verts = Vec::with_capacity(nverts);
         let mut indices = Vec::with_capacity(nindices);
@@ -378,15 +451,16 @@ impl CanvasRenderer for DisplayList {
             pos
         };
 
-        for path in paths.iter() {
+        let color = stroke.color();
+
+        for path in stroke.path_iter() {
             let offset = verts.len();
             let ntriangles = path.verts().len();
             verts.extend(path.verts().iter().map(|vert| {
-                let color = &params.outer_color;
                 TriangleVertex {
                     pos: transform_pos(Vec2::new(vert.x, vert.y)),
                     tex_coord: Vec2::new(vert.u, vert.v),
-                    color: Vec4::new(color.r, color.g, color.b, color.a),
+                    color: Vec4::new(color.r as Scalar / 255.0, color.g as Scalar / 255.0, color.b as Scalar / 255.0, color.a as Scalar / 255.0),
                 }
             }));
 

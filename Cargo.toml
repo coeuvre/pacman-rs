@@ -18,6 +18,9 @@ features = ["bundled", "static-link"]
 path = "stb-sys"
 features = ["image"]
 
+[dependencies.rdraw]
+git = "https://github.com/coeuvre/rdraw"
+
 [workspace]
 members = [
     "gl",

@@ -25,7 +25,6 @@ pub mod renderer;
 pub mod math;
 pub mod bitmap;
 pub mod game;
-pub mod canvas;
 
 use crate::renderer::*;
 use crate::math::*;
