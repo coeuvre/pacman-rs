@@ -120,7 +120,7 @@ impl GameState {
     pub fn update(&mut self, input: &Input, renderer: &mut Renderer, dl: &mut DisplayList) {
         self.count += input.dt;
 
-//        draw_lines(&mut self.canvas, dl, 600.0, 300.0, 600.0, 50.0, self.count);
+        draw_lines(&mut self.canvas, dl, 600.0, 300.0, 600.0, 50.0, self.count);
 
         draw_widths(&mut self.canvas, dl, 500.0, 300.0, 30.0);
 //        {
@@ -152,7 +152,7 @@ impl GameState {
 fn draw_lines(canvas: &mut Canvas, dl: &mut DisplayList, x: Scalar, y: Scalar, w: Scalar, _h: Scalar, t: Scalar) {
     let pad = 5.0;
     let s = w / 9.0 - pad * 2.0;
-    let joins = [LineJoin::Miter];
+    let joins = [LineJoin::Miter, LineJoin::Round];
     let caps = [LineCap::Butt];
 
     let pts = [
